@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Player } from '../../engine';
 import { EXPANSION_TEAM_ID, formatMoney, fullName } from '../../engine';
 import { useGame } from '../../store/game';
+import { speedFactor } from '../../store/persistence';
 import { POS_LABEL } from '../text';
 import { Logo } from '../components/Logo';
 import { Button, GradeBadge } from '../components/ui';
@@ -18,12 +19,13 @@ export function DraftNight() {
   }, [league, draft]);
   const [shown, setShown] = useState(0);
   const [speed, setSpeed] = useState<'normal' | 'fast'>('normal');
+  const factor = speedFactor(useGame((s) => s.settings.speed));
 
   useEffect(() => {
     if (shown > picks.length) return;
-    const id = setTimeout(() => setShown((s) => s + 1), speed === 'fast' ? 250 : 1600);
+    const id = setTimeout(() => setShown((s) => s + 1), (speed === 'fast' ? 250 : 1600) * factor);
     return () => clearTimeout(id);
-  }, [shown, speed, picks.length]);
+  }, [shown, speed, picks.length, factor]);
 
   if (!league || !draft?.grades || !postDraftLeague) return null;
   const me = league.teams.find((t) => t.id === EXPANSION_TEAM_ID);

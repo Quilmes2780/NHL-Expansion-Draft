@@ -3,10 +3,11 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { App } from './ui/App';
 import { RULE_SETS } from './engine';
-import { useGame } from './store/game';
+import { startAutosave, useGame } from './store/game';
 
 // Dev-only hook for driving the game from the browser console during testing.
 if (import.meta.env.DEV) Object.assign(window, { __game: useGame, __rules: RULE_SETS });
+startAutosave();
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>

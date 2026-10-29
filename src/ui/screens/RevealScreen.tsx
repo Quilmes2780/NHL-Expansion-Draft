@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Player, Team } from '../../engine';
 import { formatRange, groupOf, scoutView } from '../../engine';
 import { useGame } from '../../store/game';
+import { speedFactor } from '../../store/persistence';
 import { PERSONALITY_LABEL, RULE_TIPS } from '../text';
 import { Logo } from '../components/Logo';
 import { Badge, Button, Panel, Tip } from '../components/ui';
@@ -67,12 +68,13 @@ export function RevealScreen() {
   );
   const [shown, setShown] = useState(0);
   const [fast, setFast] = useState(false);
+  const factor = speedFactor(useGame((s) => s.settings.speed));
 
   useEffect(() => {
     if (shown >= teams.length) return;
-    const id = setTimeout(() => setShown((s) => s + 1), fast ? 120 : 900);
+    const id = setTimeout(() => setShown((s) => s + 1), (fast ? 120 : 900) * factor);
     return () => clearTimeout(id);
-  }, [shown, fast, teams.length]);
+  }, [shown, fast, teams.length, factor]);
 
   if (!league || !draft) return null;
   const visible = teams.slice(0, shown);

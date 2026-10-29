@@ -1,16 +1,21 @@
 # PLAN – "Team 33 – NHL Expansion Draft GM"
 
-Status: **M1–M7 abgeschlossen** (je ein Commit). **M8 in Arbeit:** erledigt sind Liga-JSON-Import/-Export
-(`src/engine/io/leagueData.ts`, Format `team33-league` v1, 28–32 Teams) und ein End-to-End-Determinismustest.
-Offen: Speicherslots (IndexedDB/localStorage) + Autosave + Spielstand-Export/-Import, Einstellungen
-(Sim-Geschwindigkeit, Tutorial, Achievement-Übersicht über alle Spiele), Tutorial-Overlay, UI für Liga-Import,
-README-Doku des Import-Schemas, Feinschliff (Header, Tablet-Check).
+Status: **M1–M8 abgeschlossen.** Alle Abnahmekriterien sind abgedeckt (Durchlauf, ungültige Draftlisten werden mit
+Regelangabe abgelehnt, Determinismus per End-to-End-Test, Tests grün, offline lauffähiges Single-File-Bundle).
+
+Bekannte Grenzen / mögliche nächste Schritte:
+- Nur die erste Saison (kein Mehrjahresmodus); KI-Teams machen keine eigenen Trade-Angebote.
+- OT-Quote ~17 % (NHL ~22 %): Score-Effekte und Empty-Net-Tore sind nicht modelliert.
+- Rollenversprechen gibt es nur aus dem Verhandlungsfenster, nicht aus der Free Agency.
+- Liga-Import auf 28–32 Teams begrenzt (Spielplan/Expansion-Kader).
 
 Abweichungen/Ergänzungen gegenüber dem Plan:
 - Kein ESLint; die Engine-Regeln (keine UI-Imports, kein `Math.random`/`Date.now`/DOM) prüft ein Architekturtest.
 - Der Build erzeugt eine einzige inline-`dist/index.html` (vite-plugin-singlefile), die auch per `file://` läuft.
 - Draft Board hat zusätzlich „Rest auto-füllen“: füllt offene Teams nur auf Basis der gescouteten Spannen (keine echten Werte).
-- Spielstände werden noch nicht gespeichert (M8) – ein Reload startet neu.
+- M8: Spielstände in IndexedDB (Fallback localStorage) mit Autosave und Datei-Export; Einstellungen und
+  spielübergreifende Achievements liegen pro Browser in localStorage. Simulation gibt der UI per MessageChannel
+  Zeit (statt setTimeout, das in Hintergrund-Tabs auf ≥ 1 s gedrosselt wird).
 - M4: Verhandlungen und Side Deals bilden eine gemeinsame Phase „Verhandlungen“ zwischen Reveal und Draft Board;
   bis zur Abgabe kann man frei zwischen Reveal, Verhandlungen und Board wechseln. Die Rollenversprechen werden
   gespeichert und sollen in M6 (Moral) wirken.

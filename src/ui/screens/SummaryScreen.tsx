@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { recordAchievements } from '../../store/persistence';
 import {
   ACHIEVEMENTS,
   EXPANSION_TEAM_ID,
@@ -23,6 +24,10 @@ export function SummaryScreen() {
       achievements: evaluateAchievements({ league: offLeague, draft, off, regular: season, po: playoffs }),
     };
   }, [offLeague, season, playoffs, draft, off]);
+  // Remember unlocked achievements across games (per browser).
+  useEffect(() => {
+    if (data) recordAchievements(data.achievements);
+  }, [data]);
   if (!offLeague || !season || !data) return null;
   const me = offLeague.teams.find((t) => t.id === EXPANSION_TEAM_ID)!;
   const v = data.verdict;

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { BoxScore, League } from '../../engine';
 import { EXPANSION_TEAM_ID, fullName } from '../../engine';
+import { useGame } from '../../store/game';
+import { speedFactor } from '../../store/persistence';
 import { Logo } from './Logo';
 import { Button } from './ui';
 
@@ -10,11 +12,12 @@ const periodLabel = (p: number) => (p <= 3 ? `${p}. Drittel` : 'Overtime');
 export function BoxScoreView({ box, league, animate = false }: { box: BoxScore; league: League; animate?: boolean }) {
   const events = box.events.filter((e) => e.type !== 'injury' || e.teamId === EXPANSION_TEAM_ID);
   const [shown, setShown] = useState(animate ? 0 : events.length);
+  const factor = speedFactor(useGame((s) => s.settings.speed));
   useEffect(() => {
     if (shown >= events.length) return;
-    const id = setTimeout(() => setShown((n) => n + 1), 450);
+    const id = setTimeout(() => setShown((n) => n + 1), 450 * factor);
     return () => clearTimeout(id);
-  }, [shown, events.length]);
+  }, [shown, events.length, factor]);
   const done = shown >= events.length;
   const team = (id: string) => league.teams.find((t) => t.id === id);
   const name = (id: string) => (league.players[id] ? fullName(league.players[id]!) : id);

@@ -4,8 +4,19 @@ Browserbasiertes Single-Player-Managementspiel: Du gründest das 33. Franchise e
 und baust deinen Kader über einen regelkonformen Expansion Draft auf. Alle Teams, Spieler und Namen sind prozedural
 generiert – keine echten Logos, Marken oder Spieler.
 
-**Stand:** Meilensteine M1–M7 – ein kompletter Durchlauf Gründung → Draft → Offseason → 82 Spiele → Playoffs →
-Saisonbilanz ist spielbar. Speichern/Laden, JSON-Import/Export und Tutorial folgen in M8 (siehe [PLAN.md](PLAN.md)).
+**Stand:** Alle Meilensteine M1–M8 umgesetzt (siehe [PLAN.md](PLAN.md)): kompletter Durchlauf Gründung → Draft →
+Offseason → 82 Spiele → Playoffs → Saisonbilanz, Speicherstände mit Autosave, JSON-Import/-Export, Tutorial.
+
+## Spielstände, Einstellungen, Tutorial
+
+- **☰ Menü** (oben rechts) → *Spielstände*: Autosave (nach jeder Änderung, ~2 s verzögert) plus drei manuelle Plätze,
+  gespeichert in IndexedDB (Fallback: localStorage). „Als Datei exportieren“ / „Spielstand-Datei importieren“
+  (Format `team33-save`, Version 1) für Backups oder andere Rechner. Auf dem Startbildschirm: „Fortsetzen“.
+- *Einstellungen*: Simulations-/Animationsgeschwindigkeit (Reveal, Draft-Abend, Ticker), Kurz-Ticker, Misfits-Bonus,
+  Tutorial-Hinweise an/aus/zurücksetzen. Regelset, Seed und Schwierigkeit (Scouting-Budget, KI-Aufschlag bei Trades)
+  werden beim Start einer neuen Liga gewählt.
+- *Achievements*: Übersicht über alle Spiele in diesem Browser.
+- **Tutorial:** kurze Hinweiskarte beim ersten Besuch jeder Phase; die ?-Symbole erklären überall die Regeln.
 
 ## Starten
 
@@ -111,7 +122,8 @@ src/
     offseason/     Lotterie + Entry Draft, Free Agency, Trade-Bewertung, Aufstellung/Kader
     sim/           Spielplan, Spiel-Engine, Saison-Loop, Playoffs, Tabellen/Statistiken, Headless-Testkit
     world/         Owner/Fans/Zuschauer/Moral, Newsfeed, Awards, Draft-Rückblick, Achievements
-  store/           Zustand-Store (dünne Hülle um Engine-Aufrufe)
+    io/            Import/Export eigener Ligadaten (Schema siehe unten)
+  store/           Zustand-Store (dünne Hülle um Engine-Aufrufe), Spielstände/Autosave/Einstellungen
   ui/              React-Komponenten und Screens (Tailwind)
 ```
 
@@ -155,4 +167,57 @@ Gedraftete Prospects bleiben ungesignt im Farmteam.
 
 ## JSON-Import eigener Ligadaten
 
-Folgt in M8 (Schema wird hier dokumentiert).
+Auf dem Startbildschirm unter „Eigene Liga importieren“. „Vorlage herunterladen“ exportiert die per Seed generierte
+Liga im Importformat – der einfachste Startpunkt für eigene Daten. Seed, Regelset und Schwierigkeit kommen aus dem
+Formular „Neue Liga“; der Seed bestimmt alle ergänzten Werte (Import ist deterministisch).
+
+```jsonc
+{
+  "format": "team33-league",          // Pflicht
+  "version": 1,                       // Pflicht
+  "name": "Meine Liga",               // optional
+  "config": {                         // optional, sonst Standard (Cap 113,5 Mio. $, Floor 74 %)
+    "salaryCap": 113500000, "capFloorPct": 0.74, "minSalary": 850000,
+    "seasonLabel": "2027-28", "seasonStartYear": 2027
+  },
+  "teams": [
+    {
+      "abbrev": "BOS",                // 2–4 Buchstaben, eindeutig, nicht "EXP"
+      "city": "Boston", "name": "Harborhawks",
+      "conference": "Eastern", "division": "Atlantic",
+      "primaryColor": "#1f3a5f", "secondaryColor": "#d4a017",
+      "lat": 42.36, "lon": -71.06,     // für Reisen und Divisions-Neueinteilung
+      "personality": "contender",      // optional: rebuild | contender | capStrapped
+      "lastSeasonPoints": 104          // optional: Draft-Lotterie / Tabellenreihenfolge
+    }
+  ],
+  "players": [
+    {
+      "firstName": "Liam", "lastName": "Fraser",
+      "team": "BOS",                   // Kürzel eines Teams
+      "position": "C",                 // C | LW | RW | D | G
+      "age": 27,
+      "ovr": 78,                       // ODER "attributes" (dann wird der OVR berechnet)
+      "attributes": {                  // Feldspieler: skating, shooting, passing, puckHandling,
+        "skating": 80                  //   defense, physical, hockeyIQ; Goalies: reflexes,
+      },                               //   positioning, reboundControl, puckHandling (1–99)
+      "potential": 81,                 // optional
+      "nationality": "CAN", "shoots": "L",                         // optional
+      "contract": {                    // null = ungesignter Draftpick
+        "capHit": 4500000,             // Dollar
+        "yearsLeft": 3,                // Saisons ab der kommenden; 0 = pending Free Agent
+        "expiryStatus": "UFA",         // optional, sonst nach Alter
+        "nmc": false, "ntc": false, "elc": false, "twoWay": false  // optional
+      },
+      "proYears": 6,                   // optional (abgeschlossene Profijahre → Exemptions)
+      "gpLastSeason": 78, "gpLastTwo": 155,                       // optional (Exposure-Regel)
+      "farm": false                    // optional: true = Farmteam/Prospect
+    }
+  ]
+}
+```
+
+Regeln der Validierung (Fehler nennen Pfad und Regel, z. B. `players[12].contract.yearsLeft: ganze Zahl 0–8`):
+28–32 Teams (Expansion Draft braucht ≥ 26 Picks, der 82-Spiele-Plan ≤ 33 Teams), genau 2 Conferences mit je 2
+Divisionen à mindestens 4 Teams, jedes Team mit mindestens 12 F, 6 D und 2 G im NHL-Kader. Damit der Expansion Draft
+regelkonform möglich ist, passt der Import bei Bedarf einzelne Verträge/Spielzahlen minimal an (Hinweis im Dialog).

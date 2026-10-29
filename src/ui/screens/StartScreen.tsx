@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Difficulty, ExpansionRules, RuleSetId } from '../../engine';
-import { RULE_SETS, cloneRules, defaultConfig } from '../../engine';
+import { RULE_SETS, cloneRules, defaultConfig, exportLeagueData, generateLeague, importLeagueData } from '../../engine';
+import type { SaveMeta } from '../../store/persistence';
+import { downloadText, listSaves } from '../../store/persistence';
 import { useGame } from '../../store/game';
 import { RULE_TIPS } from '../text';
 import { Button, Panel, Tip } from '../components/ui';
@@ -73,6 +75,93 @@ function CustomRulesEditor({ rules, onChange }: { rules: ExpansionRules; onChang
   );
 }
 
+function ContinuePanel() {
+  const { loadFrom, setMenuOpen } = useGame();
+  const [saves, setSaves] = useState<SaveMeta[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => void listSaves().then(setSaves), []);
+  const auto = saves.find((s) => s.slot === 'auto');
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-coal-700 bg-coal-900/60 p-4">
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Weiterspielen</div>
+        <div className="truncate text-sm text-slate-200">
+          {auto ? `${auto.teamName} · ${auto.detail}` : saves.length ? `${saves.length} Spielstand/Spielstände vorhanden` : 'Noch keine Spielstände.'}
+        </div>
+        {auto && <div className="text-xs text-slate-500">Autosave vom {new Date(auto.savedAt).toLocaleString('de-DE')}</div>}
+        {error && <div className="text-xs text-rose-300">{error}</div>}
+      </div>
+      {auto && <Button onClick={async () => setError(await loadFrom('auto'))}>Fortsetzen</Button>}
+      <Button variant="ghost" onClick={() => setMenuOpen(true)}>
+        Spielstände …
+      </Button>
+    </div>
+  );
+}
+
+function LeagueImportPanel({ seed, rules, difficulty }: { seed: string; rules: ExpansionRules; difficulty: Difficulty }) {
+  const newGameFromLeague = useGame((s) => s.newGameFromLeague);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="mt-4 rounded-xl border border-coal-700 bg-coal-900/60 p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Eigene Liga importieren
+            <Tip text="JSON-Datei im Format „team33-league“ (siehe README): 28–32 Teams in 2 Conferences mit je 2 Divisionen, Spieler mit Position, Alter, OVR oder Attributen und Vertrag. Fehlende Details ergänzt das Spiel anhand des Seeds. Die Vorlage enthält die aktuell per Seed generierte Liga." />
+          </div>
+          <div className="text-xs text-slate-500">Verwendet Seed, Regelset und Schwierigkeit aus dem Formular rechts.</div>
+        </div>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            const lg = generateLeague(seed.trim() || 'vorlage', defaultConfig({ rules: cloneRules(rules), difficulty }));
+            downloadText(`team33-liga-${seed.trim() || 'vorlage'}.json`, JSON.stringify(exportLeagueData(lg), null, 2));
+          }}
+        >
+          Vorlage herunterladen
+        </Button>
+        <Button variant="ghost" onClick={() => fileRef.current?.click()}>
+          Liga-Datei wählen …
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            let raw: unknown;
+            try {
+              raw = JSON.parse(await f.text());
+            } catch {
+              setErrors(['Die Datei ist kein gültiges JSON.']);
+              return;
+            }
+            const res = importLeagueData(raw, seed.trim() || f.name, defaultConfig({ rules: cloneRules(rules), difficulty }));
+            setErrors(res.errors);
+            setWarnings(res.warnings);
+            if (res.league) newGameFromLeague(res.league, rules, difficulty);
+          }}
+        />
+      </div>
+      {errors.length > 0 && (
+        <ul role="alert" className="mt-3 max-h-48 space-y-1 overflow-auto rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-100">
+          <li className="font-semibold">Import fehlgeschlagen:</li>
+          {errors.map((m) => (
+            <li key={m}>• {m}</li>
+          ))}
+        </ul>
+      )}
+      {warnings.length > 0 && errors.length === 0 && <p className="mt-2 text-xs text-amber-200">{warnings.length} Hinweis(e) beim Import, z. B.: {warnings[0]}</p>}
+    </div>
+  );
+}
+
 export function StartScreen() {
   const newGame = useGame((s) => s.newGame);
   const [seed, setSeed] = useState(randomSeed);
@@ -108,6 +197,8 @@ export function StartScreen() {
             </li>
           ))}
         </ul>
+        <ContinuePanel />
+        <LeagueImportPanel seed={seed} rules={ruleSet === 'custom' ? custom : RULE_SETS[ruleSet]} difficulty={diff} />
       </div>
 
       <Panel title="Neue Liga" className="self-start">

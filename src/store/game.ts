@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { SaveFile, Settings, SlotId } from './persistence';
+import { SAVE_FORMAT, SAVE_VERSION, loadSettings, parseSaveFile, readSave, storeSettings, writeSave } from './persistence';
 import type {
   PlayoffState,
   BoxScore,
@@ -143,6 +145,79 @@ interface GameStore {
   startPlayoffs: () => void;
   simulatePlayoffs: (target: PlayoffSimTarget) => Promise<void>;
   finishSeason: () => void;
+
+  /** Start a new game from an imported league (see engine/io/leagueData). */
+  newGameFromLeague: (league: League, rules: ExpansionRules, difficulty: Difficulty) => void;
+  settings: Settings;
+  updateSettings: (s: Partial<Settings>) => void;
+  menuOpen: boolean;
+  setMenuOpen: (open: boolean) => void;
+  saveTo: (slot: SlotId, name?: string) => Promise<string | null>;
+  loadFrom: (slot: SlotId) => Promise<string | null>;
+  exportSave: () => string | null;
+  importSave: (text: string) => string | null;
+}
+
+/**
+ * Let the browser render between simulation chunks. A MessageChannel macrotask is used instead of
+ * setTimeout, which browsers throttle to ≥ 1 s in background tabs.
+ */
+function yieldToUi(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof MessageChannel === 'undefined') return void setTimeout(resolve, 0);
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => resolve();
+    ch.port2.postMessage(null);
+  });
+}
+
+/** The parts of the store that make up a save game. */
+const SNAPSHOT_KEYS = [
+  'phase',
+  'maxPhase',
+  'seed',
+  'ruleSetId',
+  'difficulty',
+  'league',
+  'postDraftLeague',
+  'realignment',
+  'draft',
+  'offLeague',
+  'off',
+  'season',
+  'playoffs',
+  'tickerEnabled',
+] as const;
+type Snapshot = Pick<GameStore, (typeof SNAPSHOT_KEYS)[number]>;
+
+function applyTeamColors(league: League | null): void {
+  const t = league?.teams.find((x) => x.isExpansion);
+  if (!t || typeof document === 'undefined') return;
+  document.documentElement.style.setProperty('--team-primary', t.colors.primary);
+  document.documentElement.style.setProperty('--team-secondary', t.colors.secondary);
+}
+
+function makeSaveFile(s: GameStore, slot: SlotId, name?: string): SaveFile<Snapshot> | null {
+  if (s.phase === 'start' || !s.league) return null;
+  const state = Object.fromEntries(SNAPSHOT_KEYS.map((k) => [k, s[k]])) as Snapshot;
+  const current = s.offLeague ?? s.postDraftLeague ?? s.league;
+  const me = current.teams.find((t) => t.isExpansion);
+  const phaseLabel = PHASES.find((p) => p.id === s.phase)?.label ?? s.phase;
+  const detail = s.season ? `Tag ${s.season.day} · ${Object.keys(s.season.results).length} Spiele gespielt` : phaseLabel;
+  return {
+    format: SAVE_FORMAT,
+    version: SAVE_VERSION,
+    meta: {
+      slot,
+      name: name ?? (slot === 'auto' ? 'Autosave' : `${me ? `${me.city} ${me.name}` : 'Neue Liga'} – ${phaseLabel}`),
+      savedAt: new Date().toISOString(),
+      phase: phaseLabel,
+      teamName: me ? `${me.city} ${me.name}` : '–',
+      seed: s.seed,
+      detail,
+    },
+    state,
+  };
 }
 
 /** The lineup the user is currently editing (offseason, season or playoffs). */
@@ -450,7 +525,7 @@ export const useGame = create<GameStore>((set, get) => ({
           boxes.push(...r.userBoxes);
         }
         set({ offLeague: r.league, season: r.state });
-        await new Promise((res) => setTimeout(res, 0));
+        await yieldToUi();
       }
     } finally {
       set({ simulating: false, lastBoxes: target === 'day' || target === 'week' ? boxes : [] });
@@ -489,7 +564,7 @@ export const useGame = create<GameStore>((set, get) => ({
         const r = simPlayoffDay(offLeague, playoffs);
         boxes.push(...r.userBoxes);
         set({ offLeague: r.league, playoffs: r.po });
-        await new Promise((res) => setTimeout(res, 0));
+        await yieldToUi();
       }
     } finally {
       set({ simulating: false, lastBoxes: target === 'end' ? [] : boxes });
@@ -500,4 +575,78 @@ export const useGame = create<GameStore>((set, get) => ({
     const { season, playoffs } = get();
     if (season?.done && (!playoffs || playoffs.champion)) set({ phase: 'summary', maxPhase: 'summary' });
   },
+
+  newGameFromLeague: (league, rules, difficulty) => {
+    const lg: League = { ...league, config: { ...league.config, rules: cloneRules(rules), difficulty } };
+    set({
+      seed: league.seed,
+      ruleSetId: rules.id,
+      difficulty,
+      league: lg,
+      postDraftLeague: null,
+      draft: null,
+      violations: [],
+      compare: [],
+      realignment: [],
+      offLeague: null,
+      off: null,
+      season: null,
+      playoffs: null,
+      lastBoxes: [],
+      phase: 'founding',
+      maxPhase: 'founding',
+    });
+  },
+
+  settings: loadSettings(),
+  updateSettings: (s) => {
+    const settings = { ...get().settings, ...s };
+    storeSettings(settings);
+    set({ settings });
+  },
+
+  menuOpen: false,
+  setMenuOpen: (open) => set({ menuOpen: open }),
+
+  saveTo: async (slot, name) => {
+    const file = makeSaveFile(get(), slot, name);
+    if (!file) return 'Es gibt noch keinen Spielstand zum Speichern.';
+    return writeSave(file);
+  },
+
+  loadFrom: async (slot) => {
+    const file = await readSave(slot);
+    if (!file) return 'Dieser Speicherplatz ist leer.';
+    return get().importSave(JSON.stringify(file));
+  },
+
+  exportSave: () => {
+    const file = makeSaveFile(get(), 'slot1', 'Export');
+    return file ? JSON.stringify(file) : null;
+  },
+
+  importSave: (text) => {
+    const { file, error } = parseSaveFile(text);
+    if (!file) return error;
+    const state = file.state as Snapshot;
+    if (!state.league || !PHASES.some((p) => p.id === state.phase)) return 'Der Spielstand ist unvollständig.';
+    set({ ...state, violations: [], modalPlayerId: null, compare: [], lastBoxes: [], simulating: false, menuOpen: false });
+    applyTeamColors(state.league);
+    return null;
+  },
 }));
+
+/** Autosave: shortly after any change to the game state (but not while simulating). */
+export function startAutosave(): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return useGame.subscribe((s, prev) => {
+    if (s.phase === 'start' || s.simulating) return;
+    const changed = SNAPSHOT_KEYS.some((k) => s[k] !== prev[k]) || (prev.simulating && !s.simulating);
+    if (!changed) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      const file = makeSaveFile(useGame.getState(), 'auto');
+      if (file) void writeSave(file);
+    }, 2000);
+  });
+}

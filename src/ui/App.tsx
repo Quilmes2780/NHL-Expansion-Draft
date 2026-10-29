@@ -1,6 +1,8 @@
 import { useGame } from '../store/game';
 import { Header } from './components/Header';
+import { GameMenu } from './components/GameMenu';
 import { PlayerModal } from './components/PlayerModal';
+import { TutorialHint } from './components/Tutorial';
 import { DraftBoard } from './screens/DraftBoard';
 import { DraftNight } from './screens/DraftNight';
 import { FoundingScreen } from './screens/FoundingScreen';
@@ -32,6 +34,8 @@ export function App() {
         {phase === 'summary' && <SummaryScreen />}
       </main>
       <PlayerModal />
+      <GameMenu />
+      <TutorialHint />
     </div>
   );
 }

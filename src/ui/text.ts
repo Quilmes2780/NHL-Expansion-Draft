@@ -53,6 +53,42 @@ export function contractLabel(p: Player): string {
   return `${p.contract.yearsLeft} J. → ${p.contract.expiryStatus}`;
 }
 
+/** Short tutorial hints, shown once per phase (optional, see settings). */
+export const TUTORIAL: Record<string, { title: string; text: string }> = {
+  start: {
+    title: 'Willkommen, GM!',
+    text: 'Wähle Seed, Regelset und Schwierigkeit. Der Seed bestimmt die komplette Liga – gleicher Seed und gleiche Entscheidungen führen immer zum gleichen Ergebnis. Die ?-Symbole erklären überall die Regeln.',
+  },
+  founding: {
+    title: 'Gründung',
+    text: 'Die Stadt beeinflusst Fans, Zuschauer und wie gern Free Agents unterschreiben (Steuervorteil!). Das Owner-Mandat legt fest, woran du am Saisonende gemessen wirst.',
+  },
+  reveal: {
+    title: 'Schutzlisten',
+    text: 'Jedes Team schützt 7 F + 3 D + 1 G oder 8 Feldspieler + 1 G. Alle anderen berechtigten Spieler sind „exposed“ – von jedem Team darfst du genau einen nehmen. Achte auf die Analysten: Sie zeigen Überraschungen.',
+  },
+  window: {
+    title: 'Verhandlungen & Side Deals',
+    text: 'Exponierte Free Agents kannst du jetzt exklusiv unter Vertrag nehmen – die Unterschrift zählt als Pick von diesem Team. Side Deals der GMs bringen Picks oder Prospects, sind aber bindend.',
+  },
+  draft: {
+    title: 'Draft Board',
+    text: 'Fremde Spieler siehst du nur als Spanne – Scouting engt sie ein. Der Constraint-Tracker rechts zeigt per Ampel, ob du alle Regeln erfüllst (14 F, 9 D, 3 G, 20 Verträge, Cap-Korridor). Erst wenn alles grün ist, wird die Liste angenommen.',
+  },
+  offseason: {
+    title: 'Offseason',
+    text: 'Erst der Entry Draft, dann die Free Agency (mehrere Tage). Trades und Aufstellung gehen jederzeit. „Saison starten“ wird aktiv, wenn Kader, Cap Floor und Aufstellung passen.',
+  },
+  season: {
+    title: 'Die Saison',
+    text: 'Simuliere tageweise, wochenweise oder bis zur Trade Deadline. Verletzungen werden automatisch aus dem Farmteam ersetzt. Owner und Fans beobachten dich – das Mandat zählt.',
+  },
+  playoffs: {
+    title: 'Playoffs',
+    text: '16 Teams, vier Runden Best-of-7. In den Playoffs gibt es kein Shootout – Overtime bis zum ersten Tor.',
+  },
+};
+
 export const RULE_TIPS = {
   schemes:
     'Jedes bestehende Team schützt entweder 7 Stürmer + 3 Verteidiger + 1 Goalie oder 8 beliebige Feldspieler + 1 Goalie. Alle übrigen berechtigten Spieler sind „exposed“.',
