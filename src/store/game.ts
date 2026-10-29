@@ -134,6 +134,9 @@ interface GameStore {
   simulating: boolean;
   /** Own games of the last simulation step (for the ticker). */
   lastBoxes: BoxScore[];
+  /** Why the last simulation stopped early (injuries in the own team). */
+  simNotice: string[];
+  clearSimNotice: () => void;
   tickerEnabled: boolean;
   startSeason: () => string[];
   simulate: (target: SimTarget) => Promise<void>;
@@ -170,6 +173,10 @@ function yieldToUi(): Promise<void> {
     ch.port2.postMessage(null);
   });
 }
+
+/** Injury messages of the own team logged since log index `from`. */
+const ownInjuries = (s: SeasonState, from: number): string[] =>
+  s.log.slice(from).filter((e) => e.kind === 'injury' && e.teamId === EXPANSION_TEAM_ID).map((e) => e.text);
 
 /** The parts of the store that make up a save game. */
 const SNAPSHOT_KEYS = [
@@ -260,6 +267,7 @@ export const useGame = create<GameStore>((set, get) => ({
       season: null,
       playoffs: null,
       lastBoxes: [],
+      simNotice: [],
       phase: 'founding',
       maxPhase: 'founding',
     });
@@ -357,6 +365,7 @@ export const useGame = create<GameStore>((set, get) => ({
       season: null,
       playoffs: null,
       lastBoxes: [],
+      simNotice: [],
     }),
 
   offLeague: null,
@@ -456,8 +465,8 @@ export const useGame = create<GameStore>((set, get) => ({
   setLineup: (l) => {
     const { off, season, playoffs } = get();
     if (playoffs)
-      set({ playoffs: { ...playoffs, season: { ...playoffs.season, lineups: { ...playoffs.season.lineups, [EXPANSION_TEAM_ID]: l } } } });
-    else if (season) set({ season: { ...season, lineups: { ...season.lineups, [EXPANSION_TEAM_ID]: l } } });
+      set({ playoffs: { ...playoffs, season: { ...playoffs.season, savedLineup: null, lineups: { ...playoffs.season.lineups, [EXPANSION_TEAM_ID]: l } } } });
+    else if (season) set({ season: { ...season, savedLineup: null, lineups: { ...season.lineups, [EXPANSION_TEAM_ID]: l } } });
     else if (off) set({ off: { ...off, lineup: l } });
   },
 
@@ -503,10 +512,13 @@ export const useGame = create<GameStore>((set, get) => ({
 
   simulate: async (target) => {
     if (get().simulating) return;
-    set({ simulating: true, lastBoxes: [] });
+    set({ simulating: true, lastBoxes: [], simNotice: [] });
     const start = get().season;
+    const logStart = start?.log.length ?? 0;
     const stopAt = (s: SeasonState): boolean => {
       if (!start) return true;
+      // An injury in the own team interrupts longer simulations, so the user can react.
+      if (target !== 'day' && ownInjuries(s, logStart).length) return true;
       if (target === 'day') return s.day > start.day;
       if (target === 'week') return s.day >= start.day + 7;
       // Stop on deadline day itself, so trades are still possible.
@@ -528,7 +540,8 @@ export const useGame = create<GameStore>((set, get) => ({
         await yieldToUi();
       }
     } finally {
-      set({ simulating: false, lastBoxes: target === 'day' || target === 'week' ? boxes : [] });
+      const s = get().season;
+      set({ simulating: false, lastBoxes: target === 'day' || target === 'week' ? boxes : [], simNotice: s ? ownInjuries(s, logStart) : [] });
     }
   },
 
@@ -539,6 +552,8 @@ export const useGame = create<GameStore>((set, get) => ({
 
   setTicker: (on) => set({ tickerEnabled: on }),
   clearBoxes: () => set({ lastBoxes: [] }),
+  simNotice: [],
+  clearSimNotice: () => set({ simNotice: [] }),
 
   playoffs: null,
 
@@ -553,12 +568,14 @@ export const useGame = create<GameStore>((set, get) => ({
     if (get().simulating) return;
     const start = get().playoffs;
     if (!start) return;
-    set({ simulating: true, lastBoxes: [] });
+    set({ simulating: true, lastBoxes: [], simNotice: [] });
+    const logStart = start.season.log.length;
     const boxes: BoxScore[] = [];
     try {
       for (;;) {
         const { offLeague, playoffs } = get();
         if (!offLeague || !playoffs || playoffs.champion) break;
+        if (target !== 'day' && ownInjuries(playoffs.season, logStart).length) break;
         if (target === 'day' && playoffs.season.day > start.season.day) break;
         if (target === 'round' && playoffs.round > start.round) break;
         const r = simPlayoffDay(offLeague, playoffs);
@@ -567,7 +584,8 @@ export const useGame = create<GameStore>((set, get) => ({
         await yieldToUi();
       }
     } finally {
-      set({ simulating: false, lastBoxes: target === 'end' ? [] : boxes });
+      const po = get().playoffs;
+      set({ simulating: false, lastBoxes: target === 'end' ? [] : boxes, simNotice: po ? ownInjuries(po.season, logStart) : [] });
     }
   },
 
@@ -593,6 +611,7 @@ export const useGame = create<GameStore>((set, get) => ({
       season: null,
       playoffs: null,
       lastBoxes: [],
+      simNotice: [],
       phase: 'founding',
       maxPhase: 'founding',
     });
@@ -630,7 +649,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!file) return error;
     const state = file.state as Snapshot;
     if (!state.league || !PHASES.some((p) => p.id === state.phase)) return 'Der Spielstand ist unvollständig.';
-    set({ ...state, violations: [], modalPlayerId: null, compare: [], lastBoxes: [], simulating: false, menuOpen: false });
+    set({ ...state, violations: [], modalPlayerId: null, compare: [], lastBoxes: [], simNotice: [], simulating: false, menuOpen: false });
     applyTeamColors(state.league);
     return null;
   },

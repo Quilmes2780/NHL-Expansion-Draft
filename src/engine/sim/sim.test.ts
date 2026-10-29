@@ -4,7 +4,7 @@ import { activePlayers, playersOfTeam } from '../model';
 import { autoLineup } from '../offseason/lineup';
 import { simulateGame } from './game';
 import { dayLabel, generateSchedule } from './schedule';
-import { demoteWithWaivers, needsWaivers, repairLineup, simDay, simUntil, simWeek, startSeason } from './season';
+import { demoteWithWaivers, gameDayLineup, needsWaivers, simDay, simUntil, simWeek, startSeason } from './season';
 import { standings, wildcardStandings } from './standings';
 import { autoPreseason } from './testkit';
 
@@ -113,15 +113,33 @@ describe('season', () => {
       expect(activePlayers(r.league, t.id).filter((p) => !p.injury).length).toBeLessThanOrEqual(23);
   });
 
-  it('repairs lineups when players get hurt and records injuries', () => {
+  it('covers injuries with the optimized lineup and restores the user lineup afterwards', () => {
     const st = startSeason(pre.league, pre.lineup);
     const star = pre.lineup.forwards[0]![1]!;
-    const hurt = { ...st.league, players: { ...st.league.players, [star]: { ...st.league.players[star]!, injury: { description: 'Knie', gamesRemaining: 5 } } } };
-    const fixed = repairLineup(hurt, EXPANSION_TEAM_ID, pre.lineup);
-    expect(fixed.forwards.flat()).not.toContain(star);
-    expect(fixed.forwards.flat().every(Boolean)).toBe(true);
-    const r = simWeek(hurt, st.state);
-    expect(r.state.day).toBe(7);
+    const injure = (lg: typeof st.league, id: string, games: number) => ({ ...lg, players: { ...lg.players, [id]: { ...lg.players[id]!, injury: games ? { description: 'Knie', gamesRemaining: games } : null } } });
+    const hurt = injure(st.league, star, 5);
+    const r = gameDayLineup(hurt, EXPANSION_TEAM_ID, pre.lineup, null);
+    expect(r.change).toBe('auto');
+    expect(r.lineup.forwards.flat()).not.toContain(star);
+    expect(r.lineup.forwards.flat().every(Boolean)).toBe(true);
+    expect(r.saved).toBe(pre.lineup);
+    // Still hurt: the automatic lineup stays, the user's lineup stays saved.
+    expect(gameDayLineup(hurt, EXPANSION_TEAM_ID, r.lineup, r.saved).change).toBe(null);
+    // Healthy again: the user's own lineup comes back.
+    const back = gameDayLineup(injure(hurt, star, 0), EXPANSION_TEAM_ID, r.lineup, r.saved);
+    expect(back).toEqual({ lineup: pre.lineup, saved: null, change: 'restored' });
+    const w = simWeek(hurt, st.state);
+    expect(w.state.day).toBe(7);
+  });
+
+  it('puts the better goalie in net when the starter gets hurt', () => {
+    const st = startSeason(pre.league, pre.lineup);
+    const [starter, backup] = pre.lineup.goalies;
+    const hurt = { ...st.league, players: { ...st.league.players, [starter!]: { ...st.league.players[starter!]!, injury: { description: 'Leiste', gamesRemaining: 10 } } } };
+    const r = gameDayLineup(hurt, EXPANSION_TEAM_ID, pre.lineup, null);
+    const healthyGoalies = activePlayers(hurt, EXPANSION_TEAM_ID).filter((p) => p.position === 'G' && !p.injury).sort((a, b) => b.ovr - a.ovr);
+    expect(r.lineup.goalies[0]).toBe(healthyGoalies[0]!.id);
+    expect(r.lineup.goalies).toContain(backup);
   });
 
   it('runs waivers deterministically', () => {

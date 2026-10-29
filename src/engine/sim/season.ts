@@ -92,6 +92,8 @@ export interface SeasonState {
   lastGame: Record<string, { day: number; lat: number; lon: number; goalieId: string }>;
   /** Players the user called up because of injuries (sent back automatically). */
   emergency: string[];
+  /** The user's own lineup while an automatic one covers injuries (restored when everyone is back). */
+  savedLineup?: Lineup | null;
   options: SeasonOptions;
   log: SeasonEvent[];
   done: boolean;
@@ -169,47 +171,34 @@ export const tradeDeadlinePassed = (s: SeasonState): boolean => s.day > s.deadli
 
 const healthy = (p: Player) => !p.injury || p.injury.gamesRemaining <= 0;
 
-/** Replace missing, injured or demoted players in a lineup; keeps the user's choices otherwise. */
-export function repairLineup(league: League, teamId: string, l: Lineup): Lineup {
-  const issues = validateLineup(league, teamId, l).filter((i) => i.level === 'error' || /verletzt/.test(i.message));
-  if (!issues.length) return l;
+/** Does injury or a roster move keep this lineup from being dressed? */
+export const lineupBroken = (league: League, teamId: string, l: Lineup): boolean =>
+  validateLineup(league, teamId, l).some((i) => i.level === 'error' || /verletzt/.test(i.message));
+
+/**
+ * The user's lineup for today. If injuries or roster moves break it, the team plays with the optimized
+ * auto lineup (best healthy players, best goalie in net); the user's own lineup is kept aside and comes
+ * back as soon as everyone in it is healthy and on the roster again.
+ */
+export function gameDayLineup(
+  league: League,
+  teamId: string,
+  current: Lineup,
+  saved: Lineup | null,
+): { lineup: Lineup; saved: Lineup | null; change: 'auto' | 'restored' | null } {
+  if (saved && !lineupBroken(league, teamId, saved)) return { lineup: saved, saved: null, change: 'restored' };
+  if (!lineupBroken(league, teamId, current)) return { lineup: current, saved, change: null };
+  const own = saved ?? current;
   const auto = autoLineup(league, teamId);
+  // The leadership group stays as chosen as long as all of them can play.
   const ok = (id: string | null) => !!id && league.players[id]?.teamId === teamId && !league.players[id]?.farm && healthy(league.players[id] as Player);
-  const used = new Set<string>();
-  const keep = <T extends string | null>(id: T): T | null => (ok(id) && !used.has(id as string) ? (used.add(id as string), id) : null);
-  const next: Lineup = JSON.parse(JSON.stringify(l));
-  // Even strength: keep valid players, fill holes from the auto lineup.
-  next.forwards = l.forwards.map((line) => line.map((id) => keep(id)) as Lineup['forwards'][number]);
-  next.defense = l.defense.map((pair) => pair.map((id) => keep(id)) as Lineup['defense'][number]);
-  next.goalies = l.goalies.map((id) => (id && league.players[id]?.position === 'G' ? keep(id) : null)) as Lineup['goalies'];
-  // Replacements: the auto lineup's choices first, then any other healthy NHL player.
-  const extras = activePlayers(league, teamId)
-    .filter(healthy)
-    .sort((a, b) => b.ovr - a.ovr || a.id.localeCompare(b.id))
-    .map((p) => p.id);
-  const pool = [...new Set([...auto.forwards.flat(), ...auto.defense.flat(), ...auto.goalies, ...extras])].filter((id): id is string => !!id && !used.has(id));
-  const fill = (slot: string | null, wantG: boolean, wantD: boolean): string | null => {
-    if (slot) return slot;
-    const idx = pool.findIndex((id) => {
-      const p = league.players[id] as Player;
-      return wantG ? p.position === 'G' : wantD ? p.position === 'D' : groupOf(p.position) === 'F';
-    });
-    const any = idx >= 0 ? idx : pool.findIndex((id) => (league.players[id]?.position === 'G') === wantG);
-    if (any < 0) return null;
-    const [id] = pool.splice(any, 1);
-    used.add(id as string);
-    return id as string;
-  };
-  next.forwards = next.forwards.map((line) => line.map((id) => fill(id, false, false)) as Lineup['forwards'][number]);
-  next.defense = next.defense.map((pair) => pair.map((id) => fill(id, false, true)) as Lineup['defense'][number]);
-  next.goalies = next.goalies.map((id) => fill(id, true, false)) as Lineup['goalies'];
-  const valid = (id: string | null) => (ok(id) ? id : null);
-  const sub = (id: string | null, alt: string | null) => valid(id) ?? alt;
-  next.pp = l.pp.map((u, i) => ({ f: u.f.map((id, j) => sub(id, auto.pp[i]!.f[j]!)) as typeof u.f, d: u.d.map((id, j) => sub(id, auto.pp[i]!.d[j]!)) as typeof u.d }));
-  next.pk = l.pk.map((u, i) => ({ f: u.f.map((id, j) => sub(id, auto.pk[i]!.f[j]!)) as typeof u.f, d: u.d.map((id, j) => sub(id, auto.pk[i]!.d[j]!)) as typeof u.d }));
-  next.captain = sub(l.captain, auto.captain);
-  next.assistants = l.assistants.map((id, j) => sub(id, auto.assistants[j] ?? null)) as Lineup['assistants'];
-  return next;
+  if (ok(own.captain) && own.assistants.every(ok)) {
+    auto.captain = own.captain;
+    auto.assistants = own.assistants;
+  }
+  // A thin roster can leave even the auto lineup incomplete: only report actual changes.
+  if (JSON.stringify(auto) === JSON.stringify(current)) return { lineup: current, saved: own, change: null };
+  return { lineup: auto, saved: own, change: 'auto' };
 }
 
 /** Call up farm players if the team cannot dress 12 F, 6 D and 2 G. */
@@ -353,10 +342,16 @@ export function simDay(league: League, s0: SeasonState): DayResult {
   const playing = new Set(todays.flatMap((g) => [g.home, g.away]));
   for (const teamId of playing) {
     lg = emergencyCallups(lg, teamId, day, s.log, s.emergency);
-    const lineup = s.lineups[teamId] as Lineup;
-    const repaired = teamId === EXPANSION_TEAM_ID ? repairLineup(lg, teamId, lineup) : validateLineup(lg, teamId, lineup).some((i) => i.level === 'error' || /verletzt/.test(i.message)) ? autoLineup(lg, teamId) : lineup;
-    if (repaired !== lineup && teamId === EXPANSION_TEAM_ID) s.log.push({ day, teamId, kind: 'info', text: 'Aufstellung automatisch angepasst (Verletzung/Kaderänderung).' });
-    s.lineups[teamId] = repaired;
+    if (teamId !== EXPANSION_TEAM_ID) {
+      // AI coaches dress their best healthy players every night (also right after a star returns).
+      s.lineups[teamId] = autoLineup(lg, teamId);
+      continue;
+    }
+    const r = gameDayLineup(lg, teamId, s.lineups[teamId] as Lineup, s.savedLineup ?? null);
+    s.lineups[teamId] = r.lineup;
+    s.savedLineup = r.saved;
+    if (r.change === 'auto') s.log.push({ day, teamId, kind: 'info', text: 'Optimierte Aufstellung wegen Verletzung/Kaderänderung – deine Aufstellung kommt zurück, sobald alle fit sind.' });
+    if (r.change === 'restored') s.log.push({ day, teamId, kind: 'info', text: 'Alle wieder fit: Deine eigene Aufstellung gilt wieder.' });
   }
 
   const players = { ...lg.players };

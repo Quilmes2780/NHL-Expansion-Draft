@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { PlayoffState, Series } from '../../engine';
+import type { BoxScore, PlayoffState, Series } from '../../engine';
 import { EXPANSION_TEAM_ID, ROUND_NAMES, dayLabel, isEliminated, seriesOf, skaterTable } from '../../engine';
 import { useGame } from '../../store/game';
 import { BoxScoreModal } from '../components/BoxScoreView';
@@ -7,8 +7,9 @@ import { Logo } from '../components/Logo';
 import { Button, Panel, Tip } from '../components/ui';
 import { NewsFeed, OwnerFansPanel } from '../components/WorldPanels';
 import { LineupTab } from './offseason/LineupTab';
+import { SimNotice } from '../components/SimNotice';
 
-function SeriesCard({ s, po, highlight }: { s: Series | undefined; po: PlayoffState; highlight: boolean }) {
+function SeriesCard({ s, po, highlight, onSelect }: { s: Series | undefined; po: PlayoffState; highlight: boolean; onSelect: (s: Series) => void }) {
   const { offLeague } = useGame();
   if (!offLeague) return null;
   if (!s)
@@ -29,15 +30,20 @@ function SeriesCard({ s, po, highlight }: { s: Series | undefined; po: PlayoffSt
     );
   };
   return (
-    <div className={`rounded-lg border bg-coal-900 ${highlight ? 'border-ice-400 ring-1 ring-ice-400/40' : 'border-coal-700'}`}>
+    <button
+      type="button"
+      onClick={() => onSelect(s)}
+      title="Ergebnisse der Serie anzeigen"
+      className={`block w-full rounded-lg border bg-coal-900 text-left hover:border-ice-300 ${highlight ? 'border-ice-400 ring-1 ring-ice-400/40' : 'border-coal-700'}`}
+    >
       {row(s.a, s.winsA)}
       <div className="h-px bg-coal-700" />
       {row(s.b, s.winsB)}
-    </div>
+    </button>
   );
 }
 
-function Bracket({ po }: { po: PlayoffState }) {
+function Bracket({ po, onSelect }: { po: PlayoffState; onSelect: (s: Series) => void }) {
   const confs = [...new Set(po.rounds[0]!.map((s) => s.conference))];
   const mine = (s: Series | undefined) => !!s && (s.a === EXPANSION_TEAM_ID || s.b === EXPANSION_TEAM_ID);
   const final = po.rounds[3]?.[0];
@@ -54,7 +60,7 @@ function Bracket({ po }: { po: PlayoffState }) {
               {ordered.map((col, i) => (
                 <div key={i} className="flex flex-col justify-around gap-2">
                   {col.map((s, j) => (
-                    <SeriesCard key={s?.id ?? `${i}-${j}`} s={s} po={po} highlight={mine(s)} />
+                    <SeriesCard key={s?.id ?? `${i}-${j}`} s={s} po={po} highlight={mine(s)} onSelect={onSelect} />
                   ))}
                 </div>
               ))}
@@ -64,15 +70,114 @@ function Bracket({ po }: { po: PlayoffState }) {
       })}
       <div className="flex flex-col justify-center gap-2 xl:order-2">
         <div className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Finale</div>
-        <SeriesCard s={final} po={po} highlight={mine(final)} />
+        <SeriesCard s={final} po={po} highlight={mine(final)} onSelect={onSelect} />
       </div>
     </div>
+  );
+}
+
+/** The current round, or the one just finished while the next has not started yet. */
+const latestPlayedRound = (po: PlayoffState): number => (po.round > 0 && !po.rounds[po.round]?.some((s) => s.games.length) ? po.round - 1 : po.round);
+
+/** Every game of every series in one round: winner, score and overtime; own games open the box score. */
+function RoundResults({
+  po,
+  round,
+  setRound,
+  selected,
+  onBox,
+}: {
+  po: PlayoffState;
+  round: number;
+  setRound: (r: number) => void;
+  selected: string | null;
+  onBox: (b: BoxScore) => void;
+}) {
+  const { offLeague } = useGame();
+  if (!offLeague) return null;
+  const abbr = (id: string) => offLeague.teams.find((t) => t.id === id)?.abbrev ?? '?';
+  const series = po.rounds[round] ?? [];
+  return (
+    <Panel
+      title="Ergebnisse"
+      actions={
+        <div className="flex flex-wrap gap-1">
+          {po.rounds.map((_, r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRound(r)}
+              className={`rounded px-2 py-0.5 text-xs ${r === round ? 'bg-coal-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              {ROUND_NAMES[r]}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="divide-y divide-coal-800">
+        {series.map((s) => {
+          const leader = s.winsA > s.winsB ? s.a : s.b;
+          const lead =
+            s.winsA === s.winsB
+              ? `Serie ausgeglichen ${s.winsA}–${s.winsB}`
+              : `${abbr(leader)} ${s.winner ? 'gewinnt' : 'führt'} ${Math.max(s.winsA, s.winsB)}–${Math.min(s.winsA, s.winsB)}`;
+          const own = s.a === EXPANSION_TEAM_ID || s.b === EXPANSION_TEAM_ID;
+          return (
+            <div key={s.id} className={`flex flex-wrap items-center gap-2 px-3 py-2 ${s.id === selected ? 'bg-ice-500/10' : ''} ${own ? 'border-l-2 border-ice-400' : ''}`}>
+              <div className="w-44 shrink-0 text-sm">
+                <span className="font-semibold text-white">{abbr(s.a)}</span> <span className="text-slate-500">vs</span>{' '}
+                <span className="font-semibold text-white">{abbr(s.b)}</span>
+                <div className="text-[11px] text-slate-400">{s.games.length ? lead : 'noch kein Spiel'}</div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {s.games.map((gid, i) => {
+                  const r = po.season.results[gid];
+                  if (!r) return null;
+                  const winner = r.homeGoals > r.awayGoals ? r.home : r.away;
+                  const ot = r.decision !== 'REG';
+                  const title = `${dayLabel(r.day)} · ${abbr(r.away)} @ ${abbr(r.home)} ${r.awayGoals}:${r.homeGoals}${ot ? ' n. V.' : ''}`;
+                  const label = (
+                    <>
+                      <span className="text-slate-500">G{i + 1}</span> <span className="font-semibold text-white">{abbr(winner)}</span>{' '}
+                      <span className="font-mono">
+                        {Math.max(r.homeGoals, r.awayGoals)}:{Math.min(r.homeGoals, r.awayGoals)}
+                      </span>
+                      {ot && <span className="ml-1 text-amber-300">OT</span>}
+                    </>
+                  );
+                  const box = po.season.boxes[gid];
+                  return box ? (
+                    <button
+                      key={gid}
+                      type="button"
+                      title={`${title} – Boxscore öffnen`}
+                      onClick={() => onBox(box)}
+                      className="rounded border border-ice-500/40 bg-coal-850 px-1.5 py-0.5 text-xs hover:border-ice-300"
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span key={gid} title={title} className="rounded border border-coal-700 bg-coal-850 px-1.5 py-0.5 text-xs">
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 
 export function PlayoffsScreen() {
   const { offLeague, playoffs: po, simulatePlayoffs, simulating, lastBoxes, tickerEnabled, clearBoxes, finishSeason, openPlayer } = useGame();
   const [tab, setTab] = useState<'bracket' | 'stats' | 'lineup'>('bracket');
+  const [resultRound, setResultRound] = useState<number | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [openBox, setOpenBox] = useState<BoxScore | null>(null);
   const scorers = useMemo(() => (offLeague && po ? skaterTable(offLeague, po.season).slice(0, 15) : []), [offLeague, po]);
   if (!offLeague || !po) return null;
   const mySeries = seriesOf(po, EXPANSION_TEAM_ID);
@@ -112,6 +217,8 @@ export function PlayoffsScreen() {
         </div>
       </div>
 
+      <SimNotice onLineup={() => setTab('lineup')} />
+
       <div className="flex flex-wrap items-center gap-2">
         {(
           [
@@ -127,7 +234,18 @@ export function PlayoffsScreen() {
         <Tip text="Top 3 jeder Division plus zwei Wildcards je Conference. Best-of-7, Heimrecht (H) für das in der regulären Saison bessere Team nach dem Muster 2-2-1-1-1. In den Playoffs gibt es kein Shootout: Overtime wird in 20-Minuten-Abschnitten bis zum ersten Tor gespielt." />
       </div>
 
-      {tab === 'bracket' && <Bracket po={po} />}
+      {tab === 'bracket' && (
+        <>
+          <Bracket
+            po={po}
+            onSelect={(s) => {
+              setSelected(s.id);
+              setResultRound(s.round);
+            }}
+          />
+          <RoundResults po={po} round={Math.min(resultRound ?? latestPlayedRound(po), po.rounds.length - 1)} setRound={setResultRound} selected={selected} onBox={setOpenBox} />
+        </>
+      )}
       {tab === 'stats' && (
         <Panel title="Playoff-Scorer">
           <table className="w-full text-sm tabular">
@@ -168,6 +286,7 @@ export function PlayoffsScreen() {
       </div>
 
       {tickerEnabled && lastBoxes.length > 0 && !simulating && <BoxScoreModal boxes={lastBoxes} league={offLeague} animate onClose={clearBoxes} />}
+      {openBox && <BoxScoreModal boxes={[openBox]} league={offLeague} animate={false} onClose={() => setOpenBox(null)} />}
     </div>
   );
 }

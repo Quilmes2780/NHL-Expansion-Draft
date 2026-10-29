@@ -8,7 +8,8 @@ type View = 'skaters' | 'goalies' | 'teams';
 export function StatsTab() {
   const { offLeague, season, openPlayer } = useGame();
   const [view, setView] = useState<View>('skaters');
-  const [onlyMine, setOnlyMine] = useState(false);
+  // 'all' or a team id: the stats of every club can be looked at.
+  const [teamFilter, setTeamFilter] = useState<string>('all');
   const [sort, setSort] = useState<'p' | 'g' | 'a' | 'pm' | 'pim' | 'sog'>('p');
   const skaters = useMemo(() => (offLeague && season ? skaterTable(offLeague, season) : []), [offLeague, season]);
   const goalies = useMemo(() => (offLeague && season ? goalieTable(offLeague, season) : []), [offLeague, season]);
@@ -16,9 +17,17 @@ export function StatsTab() {
   if (!offLeague || !season) return null;
   const abbr = (id: string | null) => offLeague.teams.find((t) => t.id === id)?.abbrev ?? '–';
   const mine = (id: string | null) => id === EXPANSION_TEAM_ID;
-  const sk = skaters.filter((r) => !onlyMine || mine(r.teamId)).sort((a, b) => b[sort] - a[sort] || b.p - a.p).slice(0, 60);
-  const minGp = Math.max(1, Math.floor(Object.keys(season.results).length / 33 / 4));
-  const gs = goalies.filter((r) => (onlyMine ? mine(r.teamId) : r.gp >= minGp)).sort((a, b) => b.svPct - a.svPct).slice(0, 40);
+  const all = teamFilter === 'all';
+  const sk = skaters
+    .filter((r) => all || r.teamId === teamFilter)
+    .sort((a, b) => b[sort] - a[sort] || b.p - a.p)
+    .slice(0, all ? 60 : undefined);
+  const minGp = Math.max(1, Math.floor(Object.keys(season.results).length / offLeague.teams.length / 4));
+  const gs = goalies
+    .filter((r) => (all ? r.gp >= minGp : r.teamId === teamFilter))
+    .sort((a, b) => b.svPct - a.svPct)
+    .slice(0, all ? 40 : undefined);
+  const teamOptions = [...offLeague.teams].sort((a, b) => Number(mine(b.id)) - Number(mine(a.id)) || a.city.localeCompare(b.city));
 
   return (
     <div className="space-y-3">
@@ -35,9 +44,20 @@ export function StatsTab() {
           </button>
         ))}
         {view !== 'teams' && (
-          <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-400">
-            <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /> Nur mein Team
-          </label>
+          <select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            className="ml-2 rounded-md border border-coal-600 bg-coal-850 px-2 py-1 text-xs text-slate-200"
+            aria-label="Team auswählen"
+          >
+            <option value="all">Alle Teams</option>
+            {teamOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.city} {t.name}
+                {mine(t.id) ? ' (mein Team)' : ''}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
@@ -88,7 +108,7 @@ export function StatsTab() {
       )}
 
       {view === 'goalies' && (
-        <Panel title={onlyMine ? 'Goalies' : `Goalies (min. ${minGp} Spiele)`}>
+        <Panel title={all ? `Goalies (min. ${minGp} Spiele)` : 'Goalies'}>
           <table className="w-full text-sm tabular">
             <thead className="bg-coal-850 text-left text-[11px] uppercase tracking-wider text-slate-400">
               <tr>

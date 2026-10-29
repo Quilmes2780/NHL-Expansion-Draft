@@ -19,6 +19,7 @@ import { LineupTab } from './offseason/LineupTab';
 import { TradesTab } from './offseason/TradesTab';
 import { StandingsTab } from './season/StandingsTab';
 import { StatsTab } from './season/StatsTab';
+import { SimNotice } from '../components/SimNotice';
 
 type Tab = 'overview' | 'schedule' | 'standings' | 'stats' | 'lineup' | 'trades';
 
@@ -83,6 +84,8 @@ export function SeasonScreen() {
           </div>
         </div>
       </div>
+
+      <SimNotice onLineup={() => setTab('lineup')} />
 
       <div className="flex flex-wrap gap-2">
         {tabs.map(([id, label]) => (
