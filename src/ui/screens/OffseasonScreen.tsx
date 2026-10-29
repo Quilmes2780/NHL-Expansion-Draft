@@ -10,7 +10,7 @@ import { TradesTab } from './offseason/TradesTab';
 type Tab = 'draft' | 'fa' | 'trades' | 'lineup';
 
 export function OffseasonScreen() {
-  const { offLeague, off } = useGame();
+  const { offLeague, off, startSeason } = useGame();
   const [tab, setTab] = useState<Tab>('draft');
   if (!offLeague || !off) return null;
   const cfg = offLeague.config;
@@ -53,8 +53,8 @@ export function OffseasonScreen() {
           </div>
           <div className="flex items-center gap-2">
             <LightDot status={issues.length ? 'warn' : 'ok'} />
-            <Button disabled title="Die Saison-Simulation folgt in Meilenstein M6.">
-              Saison starten (M6)
+            <Button disabled={issues.length > 0} title={issues.length ? 'Erst die Punkte unten erledigen.' : 'Los geht’s!'} onClick={() => startSeason()} className={issues.length ? '' : 'animate-glow'}>
+              Saison starten →
             </Button>
           </div>
         </div>

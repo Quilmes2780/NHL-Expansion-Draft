@@ -170,8 +170,25 @@ export const fullName = (p: Player): string => `${p.firstName} ${p.lastName}`;
 
 export const teamName = (t: Team): string => `${t.city} ${t.name}`;
 
+/**
+ * Team index per players-record. Player records are treated as immutable (every change creates a
+ * new record), so the index can be cached by object identity.
+ */
+const teamIndex = new WeakMap<Record<string, Player>, Map<string, Player[]>>();
+
 export function playersOfTeam(league: League, teamId: string): Player[] {
-  return Object.values(league.players).filter((p) => p.teamId === teamId);
+  let idx = teamIndex.get(league.players);
+  if (!idx) {
+    idx = new Map();
+    for (const p of Object.values(league.players)) {
+      if (!p.teamId) continue;
+      const list = idx.get(p.teamId);
+      if (list) list.push(p);
+      else idx.set(p.teamId, [p]);
+    }
+    teamIndex.set(league.players, idx);
+  }
+  return (idx.get(teamId) ?? []).slice();
 }
 
 export function teamById(league: League, teamId: string): Team {

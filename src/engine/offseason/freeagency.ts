@@ -211,8 +211,9 @@ export function advanceFaDay(league: League, fa: FreeAgencyState): { league: Lea
     const best = scored[0]!;
     const need = last ? 0.85 : prof.threshold - 0.03 * (fa.day - 1);
     if (best.u < need) continue;
-    // Teams can lose cap room during the day; re-check before signing.
-    lg = { ...lg, players };
+    // Teams can lose cap room during the day; re-check before signing. (Snapshot copy: `players`
+    // keeps being mutated below, and team lookups are cached per players record.)
+    lg = { ...lg, players: { ...players } };
     if (teamPayroll(lg, best.teamId) + best.offer.salary > league.config.salaryCap) continue;
     players[pid] = signTo(lg, p, best.teamId, contractFromOffer(p, best.offer));
     pool.delete(pid);

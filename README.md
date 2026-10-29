@@ -4,14 +4,15 @@ Browserbasiertes Single-Player-Managementspiel: Du gründest das 33. Franchise e
 und baust deinen Kader über einen regelkonformen Expansion Draft auf. Alle Teams, Spieler und Namen sind prozedural
 generiert – keine echten Logos, Marken oder Spieler.
 
-**Stand:** Meilensteine M1–M5 (Liga-Generator, Regel-Engine, Draft-UI, Verhandlungsfenster + Side Deals, Offseason). Saison und Playoffs folgen (siehe [PLAN.md](PLAN.md)).
+**Stand:** Meilensteine M1–M6 (Liga-Generator, Regel-Engine, Draft-UI, Verhandlungsfenster + Side Deals, Offseason,
+Saisonsimulation). Playoffs, Saisonabschluss und Speichern folgen (siehe [PLAN.md](PLAN.md)).
 
 ## Starten
 
 ```bash
 npm install
 npm run dev        # Entwicklungsserver
-npm test           # Vitest (Engine-Tests)
+npm test           # Vitest (Engine-Tests, inkl. 100-Saisons-Kalibrierung, dauert ~2–3 Min.)
 npm run build      # Typecheck + statisches Bundle in dist/
 ```
 
@@ -57,6 +58,28 @@ Doppelklick (`file://`), ohne Server.
      PP1/PP2, PK1/PK2, Kapitän/Assistenten; Auto-Aufstellung; Positionsstrafen für Spieler außerhalb ihrer Position.
    - Vor dem Saisonstart prüft das Spiel Kadergröße (20–23, ≥ 12 F, ≥ 6 D, ≥ 2 G), Cap Floor/Cap und Aufstellung.
 
+9. **Saison (82 Spiele):**
+   - *Spielplan:* jedes Team 82 Spiele, exakt 41 heim/41 auswärts, Division-Rivalen 4×, sonst min. 2×; Back-to-Backs
+     kommen vor, drei Spiele in drei Tagen nie. Trade Deadline nach ~72 % der Spiele.
+   - *Simulation:* Tag, Woche, bis Deadline oder bis Saisonende; eigene Spiele optional mit Kurz-Ticker
+     (Tore, Strafen, Verletzungen) und Spielbericht.
+   - *Kader:* Verletzungen mit automatischen Ersatz-Call-ups aus dem Farmteam, Goalie-Rotation (automatisch/Starter/
+     abwechselnd), Waivers beim Runterschicken von One-Way-Spielern (KI-Teams können claimen), Trades bis zur Deadline.
+   - *Tabellen & Statistiken:* Divisionen, Wildcard, Conferences, Liga (Punkte, P%, ROW, Tordifferenz, L10, Serie);
+     Scorer, Goalies, Teamwerte (PP%, PK%, Schüsse).
+
+### Spiel-Engine
+
+- Teamstärke aus Reihen-Ratings, gewichtet nach Eiszeit (Sturmreihen 35/30/22/13 %, Verteidigerpaare 42/35/23 %),
+  inkl. Positionsstrafen, Form, Teamchemie und optionalem Misfits-Bonus (+2 in den ersten 20 Spielen).
+- 5v5-Schüsse ~ Poisson(λ) mit λ abhängig von Offensive vs. Defensive, Heimvorteil und Spieltags-Varianz; Strafen
+  ~ Poisson(3,1) je Team, jede Strafe ein Powerplay mit eigenen Schüssen (PP-Tor beendet die Strafe).
+- Torwahrscheinlichkeit je Schuss (xG-artig) aus Schütze, Spielsituation und Goalie-Tagesform.
+- Ermüdung durch Back-to-Backs und lange Reisen; Overtime 3-gegen-3 (5 Min.), danach Shootout.
+- Kalibrierung (Test über 100 Saisons): ~3,0 Tore pro Team und Spiel, Fangquote ~.904, PP ~20 %,
+  Heimsiegquote ~51–53 %, Punktestreuung ~55–120. Die OT-Quote liegt bei ~17 % (NHL ~22 %, dort zusätzlich
+  durch Score-Effekte und Empty-Net-Tore getrieben, die hier nicht modelliert sind).
+
 ## Architektur
 
 ```
@@ -73,6 +96,7 @@ src/
                    Constraint-Tracker, Mock-Draft, Noten, Scouting, Analysten, Draft-State,
                    Verhandlungen, Side Deals
     offseason/     Lotterie + Entry Draft, Free Agency, Trade-Bewertung, Aufstellung/Kader
+    sim/           Spielplan, Spiel-Engine, Saison-Loop, Tabellen/Statistiken, Headless-Testkit
   store/           Zustand-Store (dünne Hülle um Engine-Aufrufe)
   ui/              React-Komponenten und Screens (Tailwind)
 ```

@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import type {
+  BoxScore,
+  DayResult,
+  SeasonOptions,
+  SeasonState,
   Difficulty,
   ExpansionDraftState,
   ExpansionRules,
@@ -15,6 +19,11 @@ import type {
 } from '../engine';
 import {
   EXPANSION_TEAM_ID,
+  demoteWithWaivers,
+  seasonReadiness,
+  simDay,
+  startSeason as startSeasonEngine,
+  tradeDeadlinePassed,
   advanceFaDay,
   autoLineup as autoLineupFor,
   autoUserPick,
@@ -46,7 +55,7 @@ import {
   toggleWishlist,
 } from '../engine';
 
-export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results' | 'offseason';
+export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results' | 'offseason' | 'season';
 
 export const PHASES: { id: Phase; label: string }[] = [
   { id: 'founding', label: 'Gründung' },
@@ -56,7 +65,10 @@ export const PHASES: { id: Phase; label: string }[] = [
   { id: 'night', label: 'Draft-Abend' },
   { id: 'results', label: 'Bilanz' },
   { id: 'offseason', label: 'Offseason' },
+  { id: 'season', label: 'Saison' },
 ];
+
+export type SimTarget = 'day' | 'week' | 'deadline' | 'end';
 
 interface GameStore {
   phase: Phase;
@@ -108,9 +120,23 @@ interface GameStore {
   setLineup: (l: Lineup) => void;
   autoLineup: () => void;
   toggleFarm: (playerId: string) => string | null;
+
+  season: SeasonState | null;
+  simulating: boolean;
+  /** Own games of the last simulation step (for the ticker). */
+  lastBoxes: BoxScore[];
+  tickerEnabled: boolean;
+  startSeason: () => string[];
+  simulate: (target: SimTarget) => Promise<void>;
+  setSeasonOption: (o: Partial<SeasonOptions>) => void;
+  setTicker: (on: boolean) => void;
+  clearBoxes: () => void;
 }
 
-const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results', 'offseason'];
+/** The lineup the user is currently editing (offseason or season). */
+export const selectMyLineup = (s: GameStore): Lineup | null => s.season?.lineups[EXPANSION_TEAM_ID] ?? s.off?.lineup ?? null;
+
+const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results', 'offseason', 'season'];
 /** Phases the player can move between freely until the draft list is submitted. */
 const OPEN_PHASES: Phase[] = ['reveal', 'window', 'draft'];
 export const phaseIndex = (p: Phase): number => ORDER.indexOf(p);
@@ -141,6 +167,10 @@ export const useGame = create<GameStore>((set, get) => ({
       violations: [],
       compare: [],
       realignment: [],
+      offLeague: null,
+      off: null,
+      season: null,
+      lastBoxes: [],
       phase: 'founding',
       maxPhase: 'founding',
     });
@@ -235,6 +265,8 @@ export const useGame = create<GameStore>((set, get) => ({
       modalPlayerId: null,
       offLeague: null,
       off: null,
+      season: null,
+      lastBoxes: [],
     }),
 
   offLeague: null,
@@ -316,29 +348,101 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   trade: (t) => {
-    const { offLeague, off } = get();
+    const { offLeague, off, season } = get();
     if (!offLeague || !off) return null;
+    if (season && tradeDeadlinePassed(season))
+      return { accepted: false, ratio: 0, valueIn: 0, valueOut: 0, reasons: ['Die Trade Deadline ist vorbei.'] };
     const r = proposeTrade(offLeague, off, t);
-    if (r.evaluation.accepted) set({ offLeague: r.league, off: r.state });
+    if (r.evaluation.accepted) {
+      set({ offLeague: r.league, off: r.state });
+      if (season) {
+        const text = r.state.trades[r.state.trades.length - 1]?.text ?? 'Trade abgeschlossen.';
+        set({ season: { ...season, log: [...season.log, { day: season.day, teamId: EXPANSION_TEAM_ID, kind: 'trade', text }] } });
+      }
+    }
     return r.evaluation;
   },
 
   setLineup: (l) => {
-    const off = get().off;
-    if (off) set({ off: { ...off, lineup: l } });
+    const { off, season } = get();
+    if (season) set({ season: { ...season, lineups: { ...season.lineups, [EXPANSION_TEAM_ID]: l } } });
+    else if (off) set({ off: { ...off, lineup: l } });
   },
 
   autoLineup: () => {
-    const { offLeague, off } = get();
-    if (offLeague && off) set({ off: { ...off, lineup: autoLineupFor(offLeague, EXPANSION_TEAM_ID) } });
+    const { offLeague } = get();
+    if (offLeague) get().setLineup(autoLineupFor(offLeague, EXPANSION_TEAM_ID));
   },
 
   toggleFarm: (playerId) => {
-    const { offLeague } = get();
+    const { offLeague, season } = get();
     const p = offLeague?.players[playerId];
     if (!offLeague || !p) return null;
+    if (season && !p.farm) {
+      const r = demoteWithWaivers(offLeague, season, playerId);
+      set({ offLeague: r.league, season: r.state });
+      return r.claimedBy ? `${p.lastName} wurde über Waivers geclaimt.` : null;
+    }
     const r = setFarm(offLeague, playerId, !p.farm);
     if (!r.error) set({ offLeague: r.league });
     return r.error;
   },
+
+  season: null,
+  simulating: false,
+  lastBoxes: [],
+  tickerEnabled: true,
+
+  startSeason: () => {
+    const { offLeague, off, season } = get();
+    if (season) {
+      set({ phase: 'season' });
+      return [];
+    }
+    if (!offLeague || !off) return ['Keine Offseason aktiv.'];
+    const issues = seasonReadiness(offLeague, EXPANSION_TEAM_ID, off.lineup).map((i) => i.message);
+    if (issues.length) return issues;
+    const r = startSeasonEngine(offLeague, off.lineup);
+    set({ offLeague: r.league, season: r.state, phase: 'season', maxPhase: 'season', lastBoxes: [] });
+    return [];
+  },
+
+  simulate: async (target) => {
+    if (get().simulating) return;
+    set({ simulating: true, lastBoxes: [] });
+    const start = get().season;
+    const stopAt = (s: SeasonState): boolean => {
+      if (!start) return true;
+      if (target === 'day') return s.day > start.day;
+      if (target === 'week') return s.day >= start.day + 7;
+      // Stop on deadline day itself, so trades are still possible.
+      if (target === 'deadline') return s.day >= s.deadlineDay;
+      return false;
+    };
+    const boxes: BoxScore[] = [];
+    try {
+      // Simulate in small chunks so the UI stays responsive.
+      for (;;) {
+        const { offLeague, season } = get();
+        if (!offLeague || !season || season.done || stopAt(season)) break;
+        let r: DayResult = { league: offLeague, state: season, userBoxes: [] };
+        for (let k = 0; k < 4 && !r.state.done && !stopAt(r.state); k++) {
+          r = simDay(r.league, r.state);
+          boxes.push(...r.userBoxes);
+        }
+        set({ offLeague: r.league, season: r.state });
+        await new Promise((res) => setTimeout(res, 0));
+      }
+    } finally {
+      set({ simulating: false, lastBoxes: target === 'day' || target === 'week' ? boxes : [] });
+    }
+  },
+
+  setSeasonOption: (o) => {
+    const s = get().season;
+    if (s) set({ season: { ...s, options: { ...s.options, ...o } } });
+  },
+
+  setTicker: (on) => set({ tickerEnabled: on }),
+  clearBoxes: () => set({ lastBoxes: [] }),
 }));

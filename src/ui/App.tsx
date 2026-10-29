@@ -6,6 +6,7 @@ import { DraftNight } from './screens/DraftNight';
 import { FoundingScreen } from './screens/FoundingScreen';
 import { OffseasonScreen } from './screens/OffseasonScreen';
 import { ResultsScreen } from './screens/ResultsScreen';
+import { SeasonScreen } from './screens/SeasonScreen';
 import { RevealScreen } from './screens/RevealScreen';
 import { StartScreen } from './screens/StartScreen';
 import { WindowScreen } from './screens/WindowScreen';
@@ -24,6 +25,7 @@ export function App() {
         {phase === 'night' && <DraftNight />}
         {phase === 'results' && <ResultsScreen />}
         {phase === 'offseason' && <OffseasonScreen />}
+        {phase === 'season' && <SeasonScreen />}
       </main>
       <PlayerModal />
     </div>

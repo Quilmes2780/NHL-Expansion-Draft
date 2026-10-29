@@ -7,10 +7,11 @@ import {
   fullName,
   groupOf,
   lineRatings,
+  needsWaivers,
   playersOfTeam,
   validateLineup,
 } from '../../../engine';
-import { useGame } from '../../../store/game';
+import { selectMyLineup, useGame } from '../../../store/game';
 import { contractLabel } from '../../text';
 import { Badge, Button, Panel, Tip } from '../../components/ui';
 
@@ -33,10 +34,10 @@ function PlayerSelect({ value, options, onChange, label }: { value: Slot; option
 }
 
 export function LineupTab() {
-  const { offLeague, off, setLineup, autoLineup, toggleFarm, openPlayer } = useGame();
+  const { offLeague, setLineup, autoLineup, toggleFarm, openPlayer, season } = useGame();
+  const l = useGame(selectMyLineup);
   const [error, setError] = useState<string | null>(null);
-  if (!offLeague || !off) return null;
-  const l = off.lineup;
+  if (!offLeague || !l) return null;
   const roster = playersOfTeam(offLeague, EXPANSION_TEAM_ID).sort((a, b) => 'FDG'.indexOf(groupOf(a.position)) - 'FDG'.indexOf(groupOf(b.position)) || b.ovr - a.ovr);
   const active = roster.filter((p) => !p.farm);
   const farm = roster.filter((p) => p.farm);
@@ -64,12 +65,13 @@ export function LineupTab() {
         {p.contract ? formatMoneyShort(p.contract.capHit) : 'ungesignt'}
       </span>
       {p.farm && countsAgainstCap(p) && <Badge tone="amber" title="One-Way-Vertrag zählt auch im Farmteam gegen den Cap">Cap</Badge>}
-      {p.injury && <Badge tone="rose">verl.</Badge>}
+      {p.injury && <Badge tone="rose" title={`${p.injury.description}, noch ${p.injury.gamesRemaining} Spiele`}>verl. {p.injury.gamesRemaining}</Badge>}
+      {season && !p.farm && needsWaivers(p) && <Badge title="Muss beim Runterschicken über Waivers">W</Badge>}
       <button
         type="button"
         onClick={() => setError(toggleFarm(p.id))}
         className="rounded border border-coal-600 px-1.5 text-[11px] text-slate-300 hover:border-ice-400"
-        title={p.farm ? 'In den NHL-Kader berufen' : 'Ins Farmteam schicken'}
+        title={p.farm ? 'In den NHL-Kader berufen' : season && needsWaivers(p) ? 'Ins Farmteam schicken – muss über Waivers (andere Teams können ihn claimen)' : 'Ins Farmteam schicken'}
       >
         {p.farm ? '↑ NHL' : '↓ Farm'}
       </button>

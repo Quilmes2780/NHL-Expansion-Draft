@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Exclusive negotiation window with exposed pending UFAs/RFAs.
  * Every player has hidden, seeded expectations; the response to an offer is a pure function of
  * (player, offer, negotiation history), so identical decisions always give identical results.
@@ -20,8 +20,8 @@ const START_MOOD = 100;
 export function roleLabel(role: Role, p: Pick<Player, 'position'>): string {
   const g = groupOf(p.position);
   if (g === 'G') return role === 'top' ? 'Starting Goalie' : role === 'middle' ? '1B im Tandem' : 'Backup';
-  if (g === 'D') return role === 'top' ? 'Top-4-Verteidiger' : role === 'middle' ? '2./3. Paar' : 'ErgÃ¤nzungsspieler';
-  return role === 'top' ? 'Top-6-StÃ¼rmer' : role === 'middle' ? 'Middle-Six' : 'Bottom-Six';
+  if (g === 'D') return role === 'top' ? 'Top-4-Verteidiger' : role === 'middle' ? '2./3. Paar' : 'Ergänzungsspieler';
+  return role === 'top' ? 'Top-6-Stürmer' : role === 'middle' ? 'Middle-Six' : 'Bottom-Six';
 }
 
 export interface Offer {
@@ -98,7 +98,7 @@ export interface CityFactor {
 export function cityFactors(city: CityProfile, mandate: Mandate, p: Player): CityFactor[] {
   const f: CityFactor[] = [
     { label: 'Steuervorteil', value: 0.015 * (city.taxAdvantage - 5) },
-    { label: 'MarktgrÃ¶ÃŸe', value: 0.008 * (city.marketSize - 5) },
+    { label: 'Marktgröße', value: 0.008 * (city.marketSize - 5) },
     { label: 'Hockey-Tradition', value: 0.006 * (city.tradition - 5) },
     { label: 'Reisebelastung', value: -0.006 * (city.travelLoad - 5) },
   ];
@@ -142,7 +142,7 @@ export function roleTerm(role: Role, desired: Role): number {
   return d > 0 ? 0.03 : d < 0 ? -0.12 * -d : 0;
 }
 
-/** Utility of an offer for the player, relative to his ask (1.0 â‰ˆ exactly what he wants). */
+/** Utility of an offer for the player, relative to his ask (1.0 ≈ exactly what he wants). */
 export function offerUtility(league: League, p: Player, offer: Offer): number {
   const prof = negotiationProfile(league, p);
   return (
@@ -181,7 +181,7 @@ export function respondToOffer(league: League, p: Player, neg: Negotiation, offe
   let mood = neg.mood;
   let status: Negotiation['status'] = 'open';
   if (u >= need - 1e-9) {
-    record = { offer, response: 'accept', counter: null, message: `${p.lastName} unterschreibt! Der Agent bestÃ¤tigt die Einigung.` };
+    record = { offer, response: 'accept', counter: null, message: `${p.lastName} unterschreibt! Der Agent bestätigt die Einigung.` };
     status = 'signed';
   } else {
     const gap = need - u;
@@ -191,7 +191,7 @@ export function respondToOffer(league: League, p: Player, neg: Negotiation, offe
         offer,
         response: 'walk',
         counter: null,
-        message: `Der Agent bricht die GesprÃ¤che ab. ${p.lastName} testet lieber den freien Markt.`,
+        message: `Der Agent bricht die Gespräche ab. ${p.lastName} testet lieber den freien Markt.`,
       };
       status = 'walked';
     } else if (gap <= 0.18) {
@@ -212,7 +212,7 @@ export function respondToOffer(league: League, p: Player, neg: Negotiation, offe
         offer,
         response: 'reject',
         counter: null,
-        message: 'Das Angebot wird als respektlos empfunden. Die Stimmung kÃ¼hlt deutlich ab.',
+        message: 'Das Angebot wird als respektlos empfunden. Die Stimmung kühlt deutlich ab.',
       };
     }
   }
