@@ -29,3 +29,4 @@ export * from './sim/playoffs';
 export * from './world/meta';
 export * from './world/news';
 export * from './world/summary';
+export * from './io/leagueData';

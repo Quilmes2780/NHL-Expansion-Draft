@@ -1,6 +1,10 @@
 # PLAN – "Team 33 – NHL Expansion Draft GM"
 
-Status: **M1–M7 abgeschlossen** (je ein Commit). Als Nächstes: M8 Speichern/Laden, Import/Export, Feinschliff, Tutorial.
+Status: **M1–M7 abgeschlossen** (je ein Commit). **M8 in Arbeit:** erledigt sind Liga-JSON-Import/-Export
+(`src/engine/io/leagueData.ts`, Format `team33-league` v1, 28–32 Teams) und ein End-to-End-Determinismustest.
+Offen: Speicherslots (IndexedDB/localStorage) + Autosave + Spielstand-Export/-Import, Einstellungen
+(Sim-Geschwindigkeit, Tutorial, Achievement-Übersicht über alle Spiele), Tutorial-Overlay, UI für Liga-Import,
+README-Doku des Import-Schemas, Feinschliff (Header, Tablet-Check).
 
 Abweichungen/Ergänzungen gegenüber dem Plan:
 - Kein ESLint; die Engine-Regeln (keine UI-Imports, kein `Math.random`/`Date.now`/DOM) prüft ein Architekturtest.

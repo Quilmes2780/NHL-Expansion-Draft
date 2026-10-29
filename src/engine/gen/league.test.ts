@@ -46,6 +46,7 @@ describe('generateLeague', () => {
       expect(p.gpLastTwo).toBeGreaterThanOrEqual(p.gpLastSeason);
       if (p.contract) {
         expect(p.contract.capHit).toBeGreaterThanOrEqual(league.config.minSalary);
+        expect(Number.isInteger(p.contract.capHit)).toBe(true);
         expect(p.contract.yearsLeft).toBeGreaterThanOrEqual(0);
         expect(p.contract.yearsLeft).toBeLessThanOrEqual(8);
         if (p.age >= 33) expect(p.contract.yearsLeft).toBeLessThanOrEqual(4);

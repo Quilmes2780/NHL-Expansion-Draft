@@ -107,7 +107,7 @@ function fitPayroll(players: Player[], target: number, cfg: LeagueConfig, ceilin
       if (p.farm || !p.contract || p.contract.yearsLeft < 1 || p.contract.elc) continue;
       if (p.contract.capHit <= cfg.minSalary && factor < 1) continue;
       // Even overpaid players stay within a plausible distance of their market value.
-      const ceiling = Math.min(maxSalary(cfg), Math.max(cfg.minSalary * 2, marketValue(p.ovr, p.age, p.position, cfg) * ceilingFactor));
+      const ceiling = round25k(Math.min(maxSalary(cfg), Math.max(cfg.minSalary * 2, marketValue(p.ovr, p.age, p.position, cfg) * ceilingFactor)));
       p.contract.capHit = Math.min(ceiling, Math.max(cfg.minSalary, round25k(p.contract.capHit * factor)));
     }
   }
@@ -258,7 +258,7 @@ export function repairExposure(rng: Rng, players: Player[], cfg: LeagueConfig): 
   }
 }
 
-function genPicks(teams: Team[], cfg: LeagueConfig, seed: string): DraftPick[] {
+export function genPicks(teams: Team[], cfg: LeagueConfig, seed: string): DraftPick[] {
   const rng = rngFor(seed, 'gen', 'picks');
   const picks: DraftPick[] = [];
   for (let y = 0; y < cfg.pickYearsAhead; y++) {
