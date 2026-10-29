@@ -34,7 +34,7 @@ function PlayerSelect({ value, options, onChange, label }: { value: Slot; option
 }
 
 export function LineupTab() {
-  const { offLeague, setLineup, autoLineup, toggleFarm, openPlayer, season } = useGame();
+  const { offLeague, setLineup, autoLineup, bestRoster, toggleFarm, openPlayer, season } = useGame();
   const l = useGame(selectMyLineup);
   const [error, setError] = useState<string | null>(null);
   if (!offLeague || !l) return null;
@@ -93,6 +93,11 @@ export function LineupTab() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={autoLineup}>Auto-Aufstellung</Button>
+          {!season && (
+            <Button variant="ghost" onClick={bestRoster} title="Bildet aus allen Spielern mit Vertrag den besten NHL-Kader (Rest ins Farmteam) und setzt die Auto-Aufstellung.">
+              Besten NHL-Kader bilden
+            </Button>
+          )}
           <span className="flex items-center text-xs text-slate-400">
             Spieler außerhalb ihrer Position verlieren Rating <Tip text="Center auf dem Flügel: −1, Flügel als Center: −4, Verteidiger im Sturm: −10, Stürmer in der Verteidigung: −12." />
           </span>

@@ -11,7 +11,7 @@ import { SummerReport } from './offseason/SummerReport';
 type Tab = 'draft' | 'fa' | 'trades' | 'lineup';
 
 export function OffseasonScreen() {
-  const { offLeague, off, startSeason } = useGame();
+  const { offLeague, off, startSeason, bestRoster, faAutoFill } = useGame();
   const [tab, setTab] = useState<Tab>('draft');
   if (!offLeague || !off) return null;
   const cfg = offLeague.config;
@@ -85,7 +85,29 @@ export function OffseasonScreen() {
       {tab === 'lineup' && <LineupTab />}
 
       {issues.length > 0 && (
-        <Panel title="Bereit für den Saisonstart?">
+        <Panel
+          title="Bereit für den Saisonstart?"
+          actions={
+            <div className="flex flex-wrap gap-2">
+              {off.stage === 'fa' && !off.fa?.done && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    faAutoFill();
+                    setTab('fa');
+                  }}
+                >
+                  Kader auffüllen (Free Agency)
+                </Button>
+              )}
+              {off.stage !== 'draft' && (
+                <Button variant="ghost" onClick={bestRoster} title="Bildet aus allen Spielern mit Vertrag den besten NHL-Kader (Rest ins Farmteam) und setzt die Auto-Aufstellung.">
+                  Besten NHL-Kader bilden
+                </Button>
+              )}
+            </div>
+          }
+        >
           <ul className="space-y-1 p-4 text-sm text-amber-200">
             {issues.slice(0, 8).map((i) => (
               <li key={i.message}>• {i.message}</li>

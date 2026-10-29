@@ -22,7 +22,8 @@ const FA_TIP =
   'Free Agency läuft über mehrere Tage. Gib Angebote ab und beende den Tag: Jeder Spieler wählt das für ihn beste Angebot (Geld, Laufzeit, Rolle, Team/Stadt), sobald es seine Erwartung erfüllt. Seine Ansprüche sinken von Tag zu Tag leicht. Offene Angebote blockieren Cap Space.';
 
 export function FreeAgencyTab() {
-  const { offLeague, off, draft, faOffer, faWithdraw, faAdvance, finishFa, faOwnRfa, openPlayer } = useGame();
+  const { offLeague, off, draft, faOffer, faWithdraw, faAdvance, finishFa, faOwnRfa, faAutoFill, openPlayer } = useGame();
+  const [filled, setFilled] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [group, setGroup] = useState<'all' | 'F' | 'D' | 'G'>('all');
   const [error, setError] = useState<string | null>(null);
@@ -55,12 +56,40 @@ export function FreeAgencyTab() {
         </span>
         <span className="flex-1" />
         {!fa.done && (
+          <Button variant="ghost" onClick={() => setFilled(faAutoFill())} title="Verlängert eigene RFAs und bietet den besten Free Agents für fehlende Positionen (und bis zum Cap Floor) etwas über ihrer Forderung.">
+            Kader automatisch auffüllen
+          </Button>
+        )}
+        {!fa.done && (
           <Button onClick={faAdvance} className="animate-glow">
             Tag beenden →
           </Button>
         )}
         {fa.done && off.stage === 'fa' && <Button onClick={finishFa}>Free Agency abschließen</Button>}
       </div>
+
+      {filled && (
+        <Panel
+          title="Kader automatisch auffüllen"
+          actions={
+            <Button variant="ghost" onClick={() => setFilled(null)}>
+              OK
+            </Button>
+          }
+        >
+          <ul className="space-y-0.5 p-4 text-sm text-slate-300">
+            {filled.map((t) => (
+              <li key={t}>• {t}</li>
+            ))}
+            {!filled.length && <li className="text-slate-500">Nichts zu tun: Positionen und Cap Floor sind bereits abgedeckt (offene Angebote eingerechnet).</li>}
+            {filled.length > 0 && (
+              <li className="pt-2 text-xs text-slate-400">
+                Angebote sind keine Garantie – beende den Tag und drücke bei Bedarf erneut. Danach unter „Kader & Aufstellung“ den besten NHL-Kader bilden.
+              </li>
+            )}
+          </ul>
+        </Panel>
+      )}
 
       {ownRfas.length > 0 && (
         <Panel title="Eigene pending RFAs – exklusive Verlängerung">

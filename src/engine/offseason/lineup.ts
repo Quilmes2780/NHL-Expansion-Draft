@@ -1,7 +1,7 @@
 /** Lines, pairs, special teams and captains; plus roster moves between NHL and farm team. */
 
 import type { League, Player } from '../model';
-import { activePlayers, fullName, groupOf, teamPayroll } from '../model';
+import { activePlayers, fullName, groupOf, pickActiveRoster, playersOfTeam, teamPayroll } from '../model';
 import { capFloor } from '../config';
 
 export type Slot = string | null;
@@ -169,6 +169,21 @@ export function setFarm(league: League, playerId: string, farm: boolean): { leag
   if (!farm && !p.contract) return { league, error: 'Ungesignte Draftpicks können nicht in den NHL-Kader berufen werden.' };
   if (!farm && p.contract && p.contract.yearsLeft < 1) return { league, error: 'Spieler ohne Vertrag für die Saison können nicht berufen werden.' };
   return { league: { ...league, players: { ...league.players, [playerId]: { ...p, farm } } }, error: null };
+}
+
+/**
+ * Offseason only (no waivers): the best balanced NHL roster from everyone under contract for the coming
+ * season; the rest goes to the farm team.
+ */
+export function bestActiveRoster(league: League, teamId: string): League {
+  const signed = playersOfTeam(league, teamId).filter((p) => p.contract && p.contract.yearsLeft >= 1);
+  const keep = pickActiveRoster(signed, MAX_ACTIVE);
+  const players = { ...league.players };
+  for (const p of playersOfTeam(league, teamId)) {
+    const farm = !keep.has(p.id);
+    if (p.farm !== farm) players[p.id] = { ...p, farm };
+  }
+  return { ...league, players };
 }
 
 export interface ReadinessIssue {

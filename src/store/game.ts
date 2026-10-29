@@ -24,6 +24,8 @@ import type {
 } from '../engine';
 import {
   EXPANSION_TEAM_ID,
+  autoFillRoster,
+  bestActiveRoster,
   advanceSeason,
   seasonRecord,
   simPlayoffDay,
@@ -128,6 +130,10 @@ interface GameStore {
   faWithdraw: (playerId: string) => void;
   faOwnRfa: (playerId: string, offer: Offer) => void;
   faAdvance: () => void;
+  /** Re-sign own RFAs and make offers until positions and cap floor are covered; returns what was done. */
+  faAutoFill: () => string[];
+  /** Offseason: best NHL roster from all players under contract, then the auto lineup. */
+  bestRoster: () => void;
   finishFa: () => void;
   trade: (t: TradeProposal) => TradeEvaluation | null;
   setLineup: (l: Lineup) => void;
@@ -454,6 +460,21 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!offLeague || !off?.fa) return;
     const r = offerOwnRfa(offLeague, off.fa, playerId, offer);
     set({ offLeague: r.league, off: { ...off, fa: r.state } });
+  },
+
+  faAutoFill: () => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off?.fa) return [];
+    const r = autoFillRoster(offLeague, off.fa);
+    set({ offLeague: r.league, off: { ...off, fa: r.state } });
+    return r.actions;
+  },
+
+  bestRoster: () => {
+    const { offLeague, off, season } = get();
+    if (!offLeague || !off || season) return;
+    const lg = bestActiveRoster(offLeague, EXPANSION_TEAM_ID);
+    set({ offLeague: lg, off: { ...off, lineup: autoLineupFor(lg, EXPANSION_TEAM_ID) } });
   },
 
   faAdvance: () => {

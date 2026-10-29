@@ -148,6 +148,71 @@ export function offerOwnRfa(league: League, fa: FreeAgencyState, playerId: strin
   return { league: lg, state: { ...fa, ownRfas: { ...fa.ownRfas, [playerId]: next } } };
 }
 
+/** Roster the auto-fill aims for: players under contract who can dress (13 F, 7 D, 2 G). */
+const FILL_TARGET: Record<PositionGroup, number> = { F: 13, D: 7, G: 2 };
+/** Farm prospects below this rating do not count as roster players for the auto-fill. */
+const FILL_MIN_OVR = 60;
+
+/**
+ * "Fill the roster": re-sign the own pending RFAs at a fair price and make offers to the best free agents
+ * for every missing position and, if needed, until the payroll reaches the cap floor. Offers are a bit
+ * above the asking price, but players still choose – press again after the next day if some declined.
+ */
+export function autoFillRoster(league: League, fa: FreeAgencyState): { league: League; state: FreeAgencyState; actions: string[] } {
+  if (fa.done) return { league, state: fa, actions: [] };
+  const cfg = league.config;
+  let lg = league;
+  let st = fa;
+  const actions: string[] = [];
+  for (const [pid, neg] of Object.entries(st.ownRfas)) {
+    const p = lg.players[pid];
+    if (!p || neg.status !== 'open' || p.ovr < FILL_MIN_OVR) continue;
+    const prof = negotiationProfile(lg, p);
+    const r = offerOwnRfa(lg, st, pid, { salary: round25k(prof.ask * 1.1), years: prof.prefYears, role: prof.desiredRole });
+    if (r.state.ownRfas[pid]?.status === 'signed') actions.push(`${fullName(p)} verlängert (RFA)`);
+    ({ league: lg, state: st } = r);
+  }
+  const have: Record<PositionGroup, number> = { F: 0, D: 0, G: 0 };
+  let roster = 0;
+  for (const p of playersOfTeam(lg, EXPANSION_TEAM_ID))
+    if (p.contract && p.contract.yearsLeft >= 1 && (!p.farm || p.ovr >= FILL_MIN_OVR)) {
+      have[groupOf(p.position)]++;
+      roster++;
+    }
+  let payroll = teamPayroll(lg, EXPANSION_TEAM_ID);
+  for (const [pid, o] of Object.entries(st.userOffers)) {
+    const p = lg.players[pid];
+    if (!p) continue;
+    have[groupOf(p.position)]++;
+    roster++;
+    payroll += o.salary;
+  }
+  const floor = cfg.salaryCap * cfg.capFloorPct * 1.02;
+  const missing = () => (['F', 'D', 'G'] as const).reduce((s, g) => s + Math.max(0, FILL_TARGET[g] - have[g]), 0);
+  const pool = st.pool.map((id) => lg.players[id] as Player).filter((p) => p && !st.userOffers[p.id]).sort((a, b) => b.ovr - a.ovr || a.id.localeCompare(b.id));
+  for (const p of pool) {
+    const g = groupOf(p.position);
+    const short = have[g] < FILL_TARGET[g];
+    const cheap = payroll < floor && roster < MAX_ACTIVE;
+    if (!short && !cheap) continue;
+    const prof = negotiationProfile(lg, p);
+    const offer: Offer = { salary: round25k(Math.max(cfg.minSalary, prof.ask * 1.08)), years: prof.prefYears, role: prof.desiredRole };
+    if (payroll + offer.salary > cfg.salaryCap * 0.97) continue;
+    // Budget brake: the missing spots share the room up to 88 % of the cap evenly (some flexibility stays);
+    // without a positional need only up to a little above the cap floor.
+    if (short && offer.salary > Math.max(cfg.minSalary * 2, (cfg.salaryCap * 0.88 - payroll) / missing())) continue;
+    if (!short && payroll + offer.salary > floor * 1.08) continue;
+    const r = placeUserOffer(lg, st, p.id, offer);
+    if (r.error) continue;
+    st = r.state;
+    have[g]++;
+    roster++;
+    payroll += offer.salary;
+    actions.push(`Angebot an ${fullName(p)} (${p.position}, OVR ${p.ovr}): ${formatMoney(offer.salary)} × ${offer.years}`);
+  }
+  return { league: lg, state: st, actions };
+}
+
 interface AiOffer {
   teamId: string;
   offer: Offer;

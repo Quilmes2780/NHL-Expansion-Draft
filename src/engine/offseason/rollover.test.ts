@@ -6,7 +6,10 @@ import { simPlayoffsUntil, startPlayoffs } from '../sim/playoffs';
 import { simUntil, startSeason } from '../sim/season';
 import { standings } from '../sim/standings';
 import { autoOffseason, autoPreseason } from '../sim/testkit';
-import { runLottery } from './entrydraft';
+import { runLottery, simEntryDraft } from './entrydraft';
+import { advanceFaDay, autoFillRoster } from './freeagency';
+import { autoLineup, bestActiveRoster, seasonReadiness } from './lineup';
+import { finishEntryDraft, startOffseason } from './offseason';
 import { advanceSeason, retirementChance } from './rollover';
 
 /** One complete season (regular season + playoffs) from a ready roster. */
@@ -92,6 +95,26 @@ describe('season rollover', () => {
 
   it('is deterministic', () => {
     expect(JSON.stringify(advanceSeason(first.league, first.regular, first.po))).toBe(JSON.stringify(roll));
+  });
+
+  it('auto-fill + best roster get a passive GM ready for opening night, season after season', { timeout: 180_000 }, () => {
+    let league = roll.league;
+    for (let n = 0; n < 2; n++) {
+      const off = startOffseason(league);
+      const d = simEntryDraft(off.league, off.state.draft);
+      const f = finishEntryDraft(d.league, { ...off.state, draft: d.state });
+      let lg = f.league;
+      let fa = f.state.fa!;
+      while (!fa.done) {
+        ({ league: lg, state: fa } = autoFillRoster(lg, fa));
+        ({ league: lg, state: fa } = advanceFaDay(lg, fa));
+      }
+      lg = bestActiveRoster(lg, EXPANSION_TEAM_ID);
+      const lineup = autoLineup(lg, EXPANSION_TEAM_ID);
+      expect(seasonReadiness(lg, EXPANSION_TEAM_ID, lineup).map((i) => i.message)).toEqual([]);
+      const season = playSeason({ league: lg, lineup });
+      league = advanceSeason(season.league, season.regular, season.po).league;
+    }
   });
 
   it('plays two more full seasons after the inaugural one', { timeout: 180_000 }, () => {
