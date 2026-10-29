@@ -178,7 +178,8 @@ Formular „Neue Liga“; der Seed bestimmt alle ergänzten Werte (Import ist de
   "name": "Meine Liga",               // optional
   "config": {                         // optional, sonst Standard (Cap 113,5 Mio. $, Floor 74 %)
     "salaryCap": 113500000, "capFloorPct": 0.74, "minSalary": 850000,
-    "seasonLabel": "2027-28", "seasonStartYear": 2027
+    "seasonLabel": "2027-28", "seasonStartYear": 2027,
+    "fixedConferences": false         // true: Neueinteilung verschiebt keine Teams zwischen Conferences (z. B. Ligen als Conferences)
   },
   "teams": [
     {

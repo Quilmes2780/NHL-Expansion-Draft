@@ -70,7 +70,7 @@ export function DraftNight() {
             <Logo spec={league.teams.find((t) => t.id === current.teamId)!.logo} size={96} />
             <div>
               <div className="text-sm uppercase tracking-widest text-slate-400">
-                Pick {shown}/32 · von den {league.teams.find((t) => t.id === current.teamId)?.city} {league.teams.find((t) => t.id === current.teamId)?.name}
+                Pick {shown}/{league.config.existingTeams} · von den {league.teams.find((t) => t.id === current.teamId)?.city} {league.teams.find((t) => t.id === current.teamId)?.name}
               </div>
               <div className="mt-1 text-4xl font-black text-white">{fullName(player(current.playerId))}</div>
               <div className="mt-1 text-slate-300">

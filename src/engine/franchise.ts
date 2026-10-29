@@ -76,6 +76,7 @@ export function realign(league: League, newTeam: Team): RealignmentResult {
   for (const t of teams.filter((x) => assign.get(x.id) === bestDiv)) {
     for (const d of divNames) {
       if (d === bestDiv) continue;
+      if (league.config.fixedConferences && confOf(d) !== confOf(bestDiv)) continue;
       const trial = new Map(assign);
       trial.set(t.id, d);
       const cost = totalCost(trial, teams, divNames);

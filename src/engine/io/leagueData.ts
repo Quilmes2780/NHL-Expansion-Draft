@@ -65,7 +65,7 @@ export interface LeagueData {
   format: typeof LEAGUE_FORMAT;
   version: number;
   name?: string;
-  config?: Partial<Pick<LeagueConfig, 'salaryCap' | 'capFloorPct' | 'minSalary' | 'seasonLabel' | 'seasonStartYear'>>;
+  config?: Partial<Pick<LeagueConfig, 'salaryCap' | 'capFloorPct' | 'minSalary' | 'seasonLabel' | 'seasonStartYear' | 'fixedConferences'>>;
   teams: TeamData[];
   players: PlayerData[];
 }
@@ -269,6 +269,7 @@ export function exportLeagueData(league: League): LeagueData {
       minSalary: league.config.minSalary,
       seasonLabel: league.config.seasonLabel,
       seasonStartYear: league.config.seasonStartYear,
+      ...(league.config.fixedConferences ? { fixedConferences: true } : {}),
     },
     teams: teams.map((t) => ({
       abbrev: t.abbrev,

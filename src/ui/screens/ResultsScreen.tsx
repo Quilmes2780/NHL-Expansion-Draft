@@ -50,7 +50,7 @@ export function ResultsScreen() {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Gleicher Pick wie KI</span>
-              <span className="font-mono">{sameAsAi}/32</span>
+              <span className="font-mono">{sameAsAi}/{league.config.existingTeams}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Cap Hits KI</span>

@@ -45,6 +45,25 @@ describe('league data import/export', () => {
     expect(generateSchedule(founded, 'imp').games).toHaveLength((33 * 82) / 2);
   });
 
+  it('fixedConferences keeps every existing team in its conference during realignment', () => {
+    const fixed = JSON.parse(JSON.stringify(data));
+    fixed.config.fixedConferences = true;
+    const lg = importLeagueData(fixed, 'fixed', cfg).league!;
+    expect(exportLeagueData(lg).config?.fixedConferences).toBe(true);
+    const confOf = (l: typeof lg, teamId: string) => l.divisions.find((d) => d.teamIds.includes(teamId))?.conference;
+    for (const cityId of ['omaha', 'quebec', 'houston']) {
+      const founded = createFranchise(lg, {
+        cityId,
+        name: 'Fixed',
+        abbrev: 'FIX',
+        colors: { primary: '#111111', secondary: '#eeeeee', accent: '#888888' },
+        logo: { shape: 'circle', icon: 'star', colors: { primary: '#111111', secondary: '#eeeeee', accent: '#888888' }, text: '' },
+        mandate: 'budget',
+      }).league;
+      for (const t of lg.teams) expect(confOf(founded, t.id)).toBe(confOf(lg, t.id));
+    }
+  });
+
   it('fills in attributes when only OVR is given', () => {
     const slim = JSON.parse(JSON.stringify(data));
     for (const p of slim.players) delete p.attributes;

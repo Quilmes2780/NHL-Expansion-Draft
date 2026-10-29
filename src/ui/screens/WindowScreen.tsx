@@ -32,8 +32,8 @@ const DEAL_TIP =
 
 export function WindowScreen() {
   const [tab, setTab] = useState<'neg' | 'deals'>('neg');
-  const { draft, goto } = useGame();
-  if (!draft) return null;
+  const { league, draft, goto } = useGame();
+  if (!draft || !league) return null;
   const openDeals = draft.deals.filter((d) => d.status === 'open').length;
   const signed = Object.keys(draft.signings).length;
   return (
@@ -41,7 +41,7 @@ export function WindowScreen() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-black text-white">Verhandlungen & Side Deals</h1>
-          <p className="mt-1 text-slate-400">Das exklusive Fenster vor dem Draft: Verträge mit Free Agents und Absprachen mit den 32 GMs.</p>
+          <p className="mt-1 text-slate-400">Das exklusive Fenster vor dem Draft: Verträge mit Free Agents und Absprachen mit den {league.config.existingTeams} GMs.</p>
         </div>
         <Button onClick={() => goto('draft')}>Zum Draft Board →</Button>
       </div>

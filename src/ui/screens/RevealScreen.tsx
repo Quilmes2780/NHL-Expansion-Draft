@@ -94,7 +94,7 @@ export function RevealScreen() {
             Schutzlisten-Reveal <Tip text={`${RULE_TIPS.schemes} ${RULE_TIPS.nmc} ${RULE_TIPS.exempt}`} />
           </h1>
           <p className="mt-1 text-slate-400">
-            {shown < teams.length ? `Die Liga veröffentlicht die Listen … ${shown}/${teams.length}` : 'Alle 32 Listen sind veröffentlicht.'}
+            {shown < teams.length ? `Die Liga veröffentlicht die Listen … ${shown}/${teams.length}` : `Alle ${teams.length} Listen sind veröffentlicht.`}
             {Object.entries(schemeCount).map(([k, v]) => (
               <span key={k} className="ml-3 text-xs text-slate-500">
                 {k}: {v}

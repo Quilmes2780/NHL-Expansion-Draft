@@ -125,7 +125,7 @@ export function DraftBoard() {
   return (
     <div className="grid gap-4 lg:grid-cols-[180px_1fr] xl:grid-cols-[170px_1fr_300px] 2xl:grid-cols-[200px_1fr_330px]">
       {/* Team rail */}
-      <Panel title={`Teams · ${picksDone}/32`} className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-auto">
+      <Panel title={`Teams · ${picksDone}/${league.config.existingTeams}`} className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-auto">
         <div className="grid grid-cols-4 gap-1 p-2 sm:grid-cols-8 lg:grid-cols-1">
           <button
             type="button"
@@ -164,7 +164,7 @@ export function DraftBoard() {
           {(
             [
               ['pool', `Exponierte Spieler (${rows.length})`],
-              ['mine', `Meine Auswahl (${picksDone}/32)`],
+              ['mine', `Meine Auswahl (${picksDone}/${league.config.existingTeams})`],
               ['compare', `Vergleich (${compare.length}/3)`],
             ] as [Tab, string][]
           ).map(([id, label]) => (

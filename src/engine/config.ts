@@ -67,6 +67,8 @@ export interface LeagueConfig {
   difficulty: Difficulty;
   /** Scouting points available during the expansion draft, by difficulty. */
   scoutingBudget: Record<Difficulty, number>;
+  /** Realignment never moves existing teams to the other conference (e.g. conferences are separate tiers). */
+  fixedConferences?: boolean;
 }
 
 const SCHEME_731: ProtectionScheme = {
