@@ -111,8 +111,8 @@ export function RevealScreen() {
               </Button>
             </>
           )}
-          <Button onClick={() => goto('draft')} className={shown >= teams.length ? 'animate-glow' : ''}>
-            Zum Draft Board →
+          <Button onClick={() => goto('window')} className={shown >= teams.length ? 'animate-glow' : ''}>
+            Zu den Verhandlungen →
           </Button>
         </div>
       </div>

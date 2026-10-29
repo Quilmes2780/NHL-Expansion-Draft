@@ -1,11 +1,50 @@
-import { summarizeSelection } from '../../engine';
+import { assetLabel, effectiveLeague, formatMoney, fullName, summarizeSelection } from '../../engine';
 import { useGame } from '../../store/game';
 import { RULE_TIPS } from '../text';
 import { Button, LightDot, Panel, Tip } from './ui';
 
-export function ConstraintTracker() {
-  const { league, draft, violations, submit, autoFill, clearSelection } = useGame();
+function Commitments() {
+  const { league, draft, goto } = useGame();
   if (!league || !draft) return null;
+  const signings = Object.values(draft.signings);
+  const deals = draft.deals.filter((d) => d.status === 'accepted');
+  const open = draft.deals.filter((d) => d.status === 'open').length;
+  const abbrev = (id: string) => league.teams.find((t) => t.id === id)?.abbrev ?? id;
+  const name = (id: string) => (league.players[id] ? fullName(league.players[id]!) : id);
+  return (
+    <Panel title="Bindende Absprachen">
+      <ul className="space-y-1.5 px-4 py-3 text-xs">
+        {signings.map((sg) => (
+          <li key={sg.playerId} className="flex gap-2 text-slate-300">
+            <span className="text-emerald-300">✍</span>
+            <span>
+              {name(sg.playerId)} ({abbrev(sg.teamId)}) · {formatMoney(sg.contract.capHit)} × {sg.contract.yearsLeft} J.
+            </span>
+          </li>
+        ))}
+        {deals.map((d) => (
+          <li key={d.id} className="flex gap-2 text-slate-300">
+            <span className={d.type === 'take' ? 'text-amber-300' : 'text-violet-300'}>⇄</span>
+            <span>
+              {abbrev(d.teamId)}: {d.type === 'take' ? 'nimm' : 'nicht'} {name(d.playerId)} → {assetLabel(d.asset, league)}
+            </span>
+          </li>
+        ))}
+        {!signings.length && !deals.length && <li className="text-slate-500">Keine Unterschriften oder Side Deals.</li>}
+      </ul>
+      {open > 0 && !draft.grades && (
+        <button type="button" onClick={() => goto('window')} className="w-full border-t border-coal-700 px-4 py-2 text-left text-xs text-amber-300 hover:bg-coal-800">
+          {open} offene(s) Side-Deal-Angebot(e) ansehen →
+        </button>
+      )}
+    </Panel>
+  );
+}
+
+export function ConstraintTracker() {
+  const { league: baseLeague, draft, violations, submit, autoFill, clearSelection } = useGame();
+  if (!baseLeague || !draft) return null;
+  const league = effectiveLeague(baseLeague, draft);
   const sum = summarizeSelection(league, draft.protections, draft.selection);
   const capPct = Math.min(100, (sum.capTotal / league.config.salaryCap) * 100);
   const minPct = (sum.capMin / league.config.salaryCap) * 100;
@@ -69,6 +108,8 @@ export function ConstraintTracker() {
           <p className="mt-2 text-xs text-slate-400">Jede Stufe kostet 1 Punkt und engt OVR, Potential und Attribute ein (max. 3 Stufen).</p>
         </div>
       </Panel>
+
+      <Commitments />
 
       {!locked && (
         <div className="space-y-2">

@@ -4,7 +4,9 @@ import type { Player, ScoutView } from '../../engine';
 import {
   GOALIE_ATTRS,
   SKATER_ATTRS,
+  blockedPlayers,
   canScout,
+  effectiveLeague,
   formatMoney,
   formatMoneyShort,
   formatRange,
@@ -15,6 +17,7 @@ import {
   rangeMid,
   scoutLevel,
   scoutView,
+  teamLock,
 } from '../../engine';
 import { useGame } from '../../store/game';
 import { ATTR_LABEL, RULE_TIPS, contractLabel } from '../text';
@@ -32,7 +35,10 @@ interface Row {
 }
 
 export function DraftBoard() {
-  const { league, draft, select, toggleWish, toggleCompare, compare, openPlayer, scout } = useGame();
+  const { league: baseLeague, draft, select, toggleWish, toggleCompare, compare, openPlayer, scout, goto } = useGame();
+  // Contracts signed in the negotiation window replace the old (expiring) ones.
+  const league = useMemo(() => (baseLeague && draft ? effectiveLeague(baseLeague, draft) : baseLeague), [baseLeague, draft]);
+  const blocked = useMemo(() => (draft ? blockedPlayers(draft) : new Set<string>()), [draft]);
   const [tab, setTab] = useState<Tab>('pool');
   const [team, setTeam] = useState<string>('all');
   const [group, setGroup] = useState<'all' | 'F' | 'D' | 'G'>('all');
@@ -240,6 +246,8 @@ export function DraftBoard() {
                     const teamTaken = !!draft.selection[teamId] && !chosen;
                     const ufa = isPendingUfa(p);
                     const lvl = scoutLevel(draft, p.id);
+                    const lock = teamLock(draft, teamId);
+                    const signed = !!draft.signings[p.id];
                     return (
                       <tr key={p.id} className={`${chosen ? 'bg-ice-500/10' : teamTaken ? 'opacity-55' : ''} hover:bg-coal-800/70`}>
                         <td className="px-2">
@@ -279,7 +287,14 @@ export function DraftBoard() {
                               pending RFA
                             </Badge>
                           ) : (
-                            <span className="text-slate-300">{contractLabel(p)}</span>
+                            <span className="text-slate-300">
+                              {signed && (
+                                <Badge tone="emerald" title="Im Verhandlungsfenster unterschrieben">
+                                  neu
+                                </Badge>
+                              )}{' '}
+                              {contractLabel(p)}
+                            </span>
                           )}
                         </td>
                         <td className="hidden px-2 font-mono text-xs text-slate-400 2xl:table-cell" title={`Letzte 2 Saisons: ${p.gpLastTwo}`}>
@@ -299,10 +314,20 @@ export function DraftBoard() {
                           <label className="mr-2 inline-flex items-center text-[11px] text-slate-500" title="Zum Vergleich">
                             <input type="checkbox" checked={compare.includes(p.id)} onChange={() => toggleCompare(p.id)} />
                           </label>
-                          {ufa ? (
-                            <span className="text-[11px] text-slate-500" title={RULE_TIPS.pendingUfa}>
-                              nur Verhandlung
-                            </span>
+                          {chosen && lock ? (
+                            <Badge tone="emerald" title={lock === 'signing' ? 'Unterschrift = Pick' : 'Bindender Side Deal'}>
+                              🔒 {lock === 'signing' ? 'Unterschrift' : 'Deal'}
+                            </Badge>
+                          ) : blocked.has(p.id) ? (
+                            <Badge tone="rose" title="Per Side Deal ausgeschlossen">
+                              Deal: tabu
+                            </Badge>
+                          ) : lock ? (
+                            <span className="text-[11px] text-slate-500">Team fixiert</span>
+                          ) : ufa ? (
+                            <button type="button" className="text-[11px] text-amber-300 hover:underline" title={RULE_TIPS.pendingUfa} onClick={() => goto('window')}>
+                              Verhandeln →
+                            </button>
                           ) : (
                             <Button
                               variant={chosen ? 'primary' : 'subtle'}
@@ -365,10 +390,14 @@ export function DraftBoard() {
                           <td className="px-3 text-right font-mono">{p.contract ? formatMoney(p.contract.capHit) : '–'}</td>
                           <td className="px-3 text-xs">{contractLabel(p)}</td>
                           <td className="px-3 text-right">
-                            {!locked && (
-                              <button type="button" className="text-xs text-rose-300 hover:underline" onClick={() => select(teamId, null)}>
-                                entfernen
-                              </button>
+                            {teamLock(draft, teamId) ? (
+                              <span className="text-xs text-emerald-300">🔒 {teamLock(draft, teamId) === 'signing' ? 'Unterschrift' : 'Deal'}</span>
+                            ) : (
+                              !locked && (
+                                <button type="button" className="text-xs text-rose-300 hover:underline" onClick={() => select(teamId, null)}>
+                                  entfernen
+                                </button>
+                              )
                             )}
                           </td>
                         </tr>

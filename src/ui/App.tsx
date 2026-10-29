@@ -7,6 +7,7 @@ import { FoundingScreen } from './screens/FoundingScreen';
 import { ResultsScreen } from './screens/ResultsScreen';
 import { RevealScreen } from './screens/RevealScreen';
 import { StartScreen } from './screens/StartScreen';
+import { WindowScreen } from './screens/WindowScreen';
 
 export function App() {
   const phase = useGame((s) => s.phase);
@@ -17,6 +18,7 @@ export function App() {
         {phase === 'start' && <StartScreen />}
         {phase === 'founding' && <FoundingScreen />}
         {phase === 'reveal' && <RevealScreen />}
+        {phase === 'window' && <WindowScreen />}
         {phase === 'draft' && <DraftBoard />}
         {phase === 'night' && <DraftNight />}
         {phase === 'results' && <ResultsScreen />}

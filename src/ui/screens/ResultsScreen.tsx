@@ -1,5 +1,5 @@
 import type { Player } from '../../engine';
-import { EXPANSION_TEAM_ID, GRADE_POINTS, formatMoney, fullName, groupOf, summarizeSelection } from '../../engine';
+import { EXPANSION_TEAM_ID, GRADE_POINTS, assetLabel, formatMoney, fullName, groupOf, summarizeSelection } from '../../engine';
 import { useGame } from '../../store/game';
 import { Logo } from '../components/Logo';
 import { Button, GradeBadge, Panel } from '../components/ui';
@@ -87,6 +87,40 @@ export function ResultsScreen() {
           </ul>
         </Panel>
       </div>
+
+      {(draft.acquired.length > 0 || Object.keys(draft.signings).length > 0) && (
+        <Panel title="Verhandlungsfenster & Side Deals">
+          <div className="grid gap-4 p-4 text-sm md:grid-cols-2">
+            <div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Unterschriften</div>
+              <ul className="space-y-1">
+                {Object.values(draft.signings).map((sg) => (
+                  <li key={sg.playerId} className="flex justify-between gap-2">
+                    <button type="button" className="hover:text-ice-300" onClick={() => openPlayer(sg.playerId)}>
+                      {fullName(pl(sg.playerId))}
+                    </button>
+                    <span className="font-mono text-slate-300">
+                      {formatMoney(sg.contract.capHit)} × {sg.contract.yearsLeft} J.
+                    </span>
+                  </li>
+                ))}
+                {!Object.keys(draft.signings).length && <li className="text-slate-500">Keine.</li>}
+              </ul>
+            </div>
+            <div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Erhaltene Assets</div>
+              <ul className="space-y-1">
+                {draft.acquired.map((a) => (
+                  <li key={JSON.stringify(a)} className="text-emerald-300">
+                    + {assetLabel(a, postDraftLeague)}
+                  </li>
+                ))}
+                {!draft.acquired.length && <li className="text-slate-500">Keine.</li>}
+              </ul>
+            </div>
+          </div>
+        </Panel>
+      )}
 
       <Panel title="Pick für Pick – mit Vergleich „Was die KI gewählt hätte“">
         <div className="overflow-x-auto">

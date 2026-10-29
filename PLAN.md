@@ -1,12 +1,17 @@
 # PLAN – "Team 33 – NHL Expansion Draft GM"
 
-Status: **M1–M3 abgeschlossen** (je ein Commit). Review durch den Auftraggeber vor M4.
+Status: **M1–M4 abgeschlossen** (je ein Commit). Als Nächstes: M5 Offseason.
 
 Abweichungen/Ergänzungen gegenüber dem Plan:
 - Kein ESLint; die Engine-Regeln (keine UI-Imports, kein `Math.random`/`Date.now`/DOM) prüft ein Architekturtest.
 - Der Build erzeugt eine einzige inline-`dist/index.html` (vite-plugin-singlefile), die auch per `file://` läuft.
 - Draft Board hat zusätzlich „Rest auto-füllen“: füllt offene Teams nur auf Basis der gescouteten Spannen (keine echten Werte).
 - Spielstände werden noch nicht gespeichert (M8) – ein Reload startet neu.
+- M4: Verhandlungen und Side Deals bilden eine gemeinsame Phase „Verhandlungen“ zwischen Reveal und Draft Board;
+  bis zur Abgabe kann man frei zwischen Reveal, Verhandlungen und Board wechseln. Die Rollenversprechen werden
+  gespeichert und sollen in M6 (Moral) wirken.
+- Generator: Cap Hits beim Payroll-Fitting auf max. 2× Marktwert begrenzt; fehlt dann Payroll bis zum Floor,
+  verlängern Teams einige ihrer pending FAs.
 
 ---
 

@@ -14,3 +14,5 @@ export * from './expansion/selection';
 export * from './expansion/scouting';
 export * from './expansion/analyst';
 export * from './expansion/draft';
+export * from './expansion/negotiation';
+export * from './expansion/sidedeals';

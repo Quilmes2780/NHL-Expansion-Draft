@@ -4,7 +4,7 @@ Browserbasiertes Single-Player-Managementspiel: Du gründest das 33. Franchise e
 und baust deinen Kader über einen regelkonformen Expansion Draft auf. Alle Teams, Spieler und Namen sind prozedural
 generiert – keine echten Logos, Marken oder Spieler.
 
-**Stand:** Meilensteine M1–M3 (Liga-Generator, Regel-Engine, Draft-UI). Offseason, Saison und Playoffs folgen (siehe [PLAN.md](PLAN.md)).
+**Stand:** Meilensteine M1–M4 (Liga-Generator, Regel-Engine, Draft-UI, Verhandlungsfenster + Side Deals). Offseason, Saison und Playoffs folgen (siehe [PLAN.md](PLAN.md)).
 
 ## Starten
 
@@ -26,11 +26,21 @@ Doppelklick (`file://`), ohne Server.
    Kürzel, Farben, SVG-Logo-Baukasten; Owner-Mandat. Die Divisionen werden geografisch neu eingeteilt.
 3. **Schutzlisten-Reveal:** 32 KI-GMs schützen nach Wert, Alter, Vertrag, Cap und Persönlichkeit; Analysten
    kommentieren Überraschungen.
-4. **Draft Board:** alle exponierten Spieler mit Filter/Sortierung, Wunschliste, Vergleich (bis 3), Spielerkarte,
+4. **Verhandlungen & Side Deals:**
+   - *Exklusives Fenster:* Mit exponierten pending UFAs/RFAs verhandeln (Gehalt, Laufzeit, Rollenversprechen).
+     Jeder Spieler hat verdeckte, geseedete Erwartungen; der Agent nennt nur Spannen. Stadtfaktoren (Steuer, Markt,
+     Tradition, Reisen) und das Owner-Mandat verschieben die Bereitschaft. Antworten: Zusage, Gegenangebot, Ablehnung
+     oder Abbruch (max. 4 Angebote, Stimmung sinkt). Eine Unterschrift zählt als fester Pick von diesem Team.
+   - *Side Deals:* KI-GMs bieten Picks/Prospects, damit du einen teuren Vertrag nimmst („Nimm ihn“) oder einen
+     Spieler in Ruhe lässt („Nimm ihn nicht“). Zusagen sind bindend, werden bei der Abgabe validiert und beim
+     Draft-Abschluss vollzogen (Asset wechselt zum Expansionsteam). Konflikte (z. B. Unterschrift + Deal beim selben
+     Team) werden verhindert.
+5. **Draft Board:** alle exponierten Spieler mit Filter/Sortierung, Wunschliste, Vergleich (bis 3), Spielerkarte,
    Fog-of-War-Scouting und permanentem Constraint-Tracker mit Ampeln. Ungültige Listen werden mit präziser
    Regelangabe abgelehnt.
-5. **Draft-Abend:** animierte Verkündung, Noten A–F pro Pick, Gesamtnote.
-6. **Bilanz:** Vergleich mit dem KI-Mock-Draft („Was die KI gewählt hätte“), beste Picks, verpasste Chancen.
+6. **Draft-Abend:** animierte Verkündung, Noten A–F pro Pick (inkl. Wert erhaltener Deal-Assets), Gesamtnote.
+7. **Bilanz:** Vergleich mit dem KI-Mock-Draft („Was die KI gewählt hätte“ – ohne Deals und Unterschriften),
+   beste Picks, verpasste Chancen, Unterschriften und erhaltene Assets.
 
 ## Architektur
 
@@ -79,7 +89,7 @@ heißt `contract.yearsLeft >= 1`. Payroll = Summe der Cap Hits aller aktiven Spi
 - Mindest-Exposure je Team: ≥ 1 D und ≥ 2 F mit Vertrag für die nächste Saison und ≥ 40 Spielen in der Vorsaison
   oder ≥ 70 in den letzten zwei; ≥ 1 G mit Vertrag oder als pending RFA. Der Generator garantiert die Erfüllbarkeit.
 - Expansionsteam: genau 1 Spieler pro Team, ≥ 14 F, ≥ 9 D, ≥ 3 G, ≥ 20 unter Vertrag, Cap Hits 60–100 % des Caps.
-- Pending UFAs sind nur über das exklusive Verhandlungsfenster verpflichtbar (M4). Pending RFAs sind wählbar, zählen
+- Pending UFAs sind nur über das exklusive Verhandlungsfenster verpflichtbar; der neue Vertrag gilt dann für alle Regeln. Pending RFAs sind wählbar, zählen
   nicht zu den 20 Verträgen; ihr Cap Hit wird mit dem bisherigen Wert angesetzt.
 
 ## Vereinfachungen

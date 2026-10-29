@@ -241,6 +241,7 @@ export function mockDraft(
   protections: Record<string, ProtectionList>,
   fixed: Selection = {},
   valueOf: (p: Player) => number = (p) => expansionValue(p, league.config),
+  exclude: ReadonlySet<string> = new Set(),
 ): Selection {
   const teamIds = Object.keys(protections).sort();
   const cands = new Map<string, Player[]>();
@@ -248,7 +249,7 @@ export function mockDraft(
   for (const t of teamIds) {
     const list = fixed[t]
       ? [league.players[fixed[t] as string] as Player]
-      : selectableCandidates(league, protections[t] as ProtectionList);
+      : selectableCandidates(league, protections[t] as ProtectionList).filter((p) => !exclude.has(p.id));
     for (const p of list) val.set(p.id, valueOf(p));
     cands.set(t, list.sort((a, b) => (val.get(b.id) ?? 0) - (val.get(a.id) ?? 0) || a.id.localeCompare(b.id)));
   }
@@ -310,11 +311,19 @@ const overallGrade = (ratio: number): Grade =>
 
 export const GRADE_POINTS: Record<Grade, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
 
+export interface GradeOptions {
+  /** Extra value per team from side deals (picks/prospects received), with a short note. */
+  bonus?: Record<string, { value: number; note: string }>;
+  /** Value of the mock draft if it was evaluated on a different league state (e.g. before signings). */
+  mockValue?: number;
+}
+
 export function gradeDraft(
   league: League,
   protections: Record<string, ProtectionList>,
   selection: Selection,
   mock: Selection = mockDraft(league, protections),
+  opts: GradeOptions = {},
 ): DraftGrades {
   const cfg = league.config;
   const picks: GradedPick[] = [];
@@ -324,7 +333,8 @@ export function gradeDraft(
     const playerId = selection[teamId];
     if (!playerId) continue;
     const p = league.players[playerId] as Player;
-    const value = expansionValue(p, cfg);
+    const bonus = opts.bonus?.[teamId];
+    const value = expansionValue(p, cfg) + (bonus?.value ?? 0);
     const cands = selectableCandidates(league, protections[teamId] as ProtectionList);
     let best = p;
     let bestValue = value;
@@ -337,7 +347,7 @@ export function gradeDraft(
     }
     const grade = pickGrade(bestValue - value);
     const aiId = mock[teamId] ?? null;
-    const comment =
+    const base =
       grade === 'A'
         ? aiId === playerId
           ? 'Lehrbuch-Pick – genau so hätte es auch die KI gemacht.'
@@ -349,9 +359,11 @@ export function gradeDraft(
             : grade === 'D'
               ? `Fragwürdig – ${fullName(best)} war die deutlich bessere Option.`
               : `Reach! ${fullName(best)} lag klar vorn.`;
+    const comment = bonus ? `${base} ${bonus.note}` : base;
     picks.push({ teamId, playerId, grade, value, bestPlayerId: best.id, bestValue, aiPlayerId: aiId, comment });
     userValue += value;
   }
-  for (const id of Object.values(mock)) mockValue += expansionValue(league.players[id] as Player, cfg);
+  if (opts.mockValue !== undefined) mockValue = opts.mockValue;
+  else for (const id of Object.values(mock)) mockValue += expansionValue(league.players[id] as Player, cfg);
   return { picks, overall: overallGrade(mockValue > 0 ? userValue / mockValue : 0), userValue, mockValue, mock };
 }

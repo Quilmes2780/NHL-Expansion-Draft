@@ -91,7 +91,7 @@ function makeContract(rng: Rng, p: Player, cfg: LeagueConfig, forceElc: boolean)
 }
 
 /** Scale committed (next-season) non-ELC contracts so the payroll hits `target`. */
-function fitPayroll(players: Player[], target: number, cfg: LeagueConfig): void {
+function fitPayroll(players: Player[], target: number, cfg: LeagueConfig, ceilingFactor = 2): void {
   for (let iter = 0; iter < 4; iter++) {
     let fixed = 0;
     let scalable = 0;
@@ -106,7 +106,9 @@ function fitPayroll(players: Player[], target: number, cfg: LeagueConfig): void 
     for (const p of players) {
       if (p.farm || !p.contract || p.contract.yearsLeft < 1 || p.contract.elc) continue;
       if (p.contract.capHit <= cfg.minSalary && factor < 1) continue;
-      p.contract.capHit = Math.min(maxSalary(cfg), Math.max(cfg.minSalary, round25k(p.contract.capHit * factor)));
+      // Even overpaid players stay within a plausible distance of their market value.
+      const ceiling = Math.min(maxSalary(cfg), Math.max(cfg.minSalary * 2, marketValue(p.ovr, p.age, p.position, cfg) * ceilingFactor));
+      p.contract.capHit = Math.min(ceiling, Math.max(cfg.minSalary, round25k(p.contract.capHit * factor)));
     }
   }
 }
@@ -187,6 +189,18 @@ function genTeamPlayers(rng: Rng, team: Team, teamIdx: number, quality: number, 
   const targetPct =
     team.personality === 'capStrapped' ? rng.range(0.96, 1.0) : team.personality === 'contender' ? rng.range(0.9, 0.97) : rng.range(0.77, 0.88);
   fitPayroll(players, Math.max(capFloor(cfg), cfg.salaryCap * targetPct), cfg);
+  // If the ceilings kept the payroll under the floor, the team has re-signed some of its pending FAs.
+  const committed = () => players.reduce((s, p) => s + (!p.farm && p.contract && p.contract.yearsLeft >= 1 ? p.contract.capHit : 0), 0);
+  const pending = players
+    .filter((p) => !p.farm && p.contract && p.contract.yearsLeft === 0 && !p.contract.elc)
+    .sort((a, b) => (b.contract?.capHit ?? 0) - (a.contract?.capHit ?? 0));
+  for (const p of pending) {
+    if (committed() >= capFloor(cfg)) break;
+    const c = p.contract as Contract;
+    c.yearsLeft = Math.max(1, Math.min(rng.int(1, 4), 37 - p.age));
+    c.expiryStatus = p.age + c.yearsLeft <= 26 ? 'RFA' : 'UFA';
+  }
+  if (committed() < capFloor(cfg)) fitPayroll(players, capFloor(cfg) * 1.01, cfg, Infinity);
 
   for (const p of players) {
     const c = p.contract;

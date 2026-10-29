@@ -5,11 +5,16 @@ import type {
   ExpansionRules,
   FranchiseOptions,
   League,
+  Offer,
   RuleSetId,
   Violation,
 } from '../engine';
 import {
+  acceptDeal,
   autoFillSelection,
+  clearSelection,
+  declineDeal,
+  makeOffer,
   cloneRules,
   createFranchise,
   defaultConfig,
@@ -21,11 +26,12 @@ import {
   toggleWishlist,
 } from '../engine';
 
-export type Phase = 'start' | 'founding' | 'reveal' | 'draft' | 'night' | 'results';
+export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results';
 
 export const PHASES: { id: Phase; label: string }[] = [
   { id: 'founding', label: 'Gründung' },
   { id: 'reveal', label: 'Schutzlisten' },
+  { id: 'window', label: 'Verhandlungen' },
   { id: 'draft', label: 'Draft Board' },
   { id: 'night', label: 'Draft-Abend' },
   { id: 'results', label: 'Bilanz' },
@@ -57,11 +63,16 @@ interface GameStore {
   toggleWish: (playerId: string) => void;
   toggleCompare: (playerId: string) => void;
   openPlayer: (playerId: string | null) => void;
+  offer: (playerId: string, offer: Offer) => void;
+  acceptDeal: (dealId: string) => string | null;
+  declineDeal: (dealId: string) => void;
   submit: () => boolean;
   reset: () => void;
 }
 
-const ORDER: Phase[] = ['start', 'founding', 'reveal', 'draft', 'night', 'results'];
+const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results'];
+/** Phases the player can move between freely until the draft list is submitted. */
+const OPEN_PHASES: Phase[] = ['reveal', 'window', 'draft'];
 export const phaseIndex = (p: Phase): number => ORDER.indexOf(p);
 
 export const useGame = create<GameStore>((set, get) => ({
@@ -107,8 +118,25 @@ export const useGame = create<GameStore>((set, get) => ({
   goto: (phase) => {
     const { maxPhase } = get();
     if (phaseIndex(phase) <= phaseIndex(maxPhase)) set({ phase });
-    // Reveal → Draft Board is the only forward step that is not triggered by an engine action.
-    else if (phase === 'draft' && maxPhase === 'reveal') set({ phase, maxPhase: 'draft' });
+    else if (OPEN_PHASES.includes(phase) && OPEN_PHASES.includes(maxPhase)) set({ phase, maxPhase: phase });
+  },
+
+  offer: (playerId, offer) => {
+    const { draft, league } = get();
+    if (draft && league) set({ draft: makeOffer(league, draft, playerId, offer), violations: [] });
+  },
+
+  acceptDeal: (dealId) => {
+    const d = get().draft;
+    if (!d) return null;
+    const res = acceptDeal(d, dealId);
+    if (!res.error) set({ draft: res.state, violations: [] });
+    return res.error;
+  },
+
+  declineDeal: (dealId) => {
+    const d = get().draft;
+    if (d) set({ draft: declineDeal(d, dealId) });
   },
 
   scout: (playerId) => {
@@ -128,7 +156,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
   clearSelection: () => {
     const d = get().draft;
-    if (d && !d.grades) set({ draft: { ...d, selection: {} }, violations: [] });
+    if (d) set({ draft: clearSelection(d), violations: [] });
   },
 
   toggleWish: (playerId) => {

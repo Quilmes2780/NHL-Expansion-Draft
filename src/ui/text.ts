@@ -64,7 +64,7 @@ export const RULE_TIPS = {
   roster:
     'Das Expansionsteam wählt genau 1 Spieler pro Team (32), darunter mind. 14 Stürmer, 9 Verteidiger und 3 Goalies. Mindestens 20 müssen für die nächste Saison unter Vertrag stehen, und die Summe der Cap Hits muss zwischen 60 % und 100 % des Salary Caps liegen.',
   pendingUfa:
-    'Pending UFAs haben keinen Vertrag für die nächste Saison. Sie können nur im exklusiven Verhandlungsfenster verpflichtet werden (folgt in Meilenstein M4).',
+    'Pending UFAs haben keinen Vertrag für die nächste Saison. Sie können nur im exklusiven Verhandlungsfenster verpflichtet werden – die Unterschrift zählt dann als Pick von ihrem Team.',
   pendingRfa:
     'Pending RFAs dürfen gewählt werden; ihre Rechte gehen ans Expansionsteam. Sie zählen nicht zu den 20 Spielern unter Vertrag; ihr Cap Hit wird mit dem bisherigen Wert (Qualifying Offer) angesetzt.',
   fog: 'Fog of War: Fremde Spieler siehst du als Spanne. Scouting kostet Punkte und engt die Spanne ein. Echte Werte siehst du erst nach dem Draft.',

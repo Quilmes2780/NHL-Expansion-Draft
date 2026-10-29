@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import type { Player } from '../../engine';
 import {
   EXPANSION_TEAM_ID,
+  blockedPlayers,
   canScout,
+  effectiveLeague,
+  teamLock,
   formatMoney,
   formatRange,
   fullName,
@@ -20,7 +23,8 @@ import { Badge, Button, RangeBar, ScoutDots, Tip } from './ui';
 
 export function PlayerModal() {
   const { modalPlayerId, openPlayer, league, postDraftLeague, draft, scout, toggleWish, select } = useGame();
-  const p: Player | undefined = modalPlayerId ? (postDraftLeague ?? league)?.players[modalPlayerId] : undefined;
+  const source = postDraftLeague ?? (league && draft ? effectiveLeague(league, draft) : league);
+  const p: Player | undefined = modalPlayerId ? source?.players[modalPlayerId] : undefined;
   const view = useScoutView(p);
 
   useEffect(() => {
@@ -174,7 +178,13 @@ export function PlayerModal() {
                   {draft.wishlist.includes(p.id) ? '★ Auf Wunschliste' : '☆ Wunschliste'}
                 </Button>
                 {!locked &&
-                  (isPendingUfa(p) ? (
+                  (teamLock(draft, origTeamId) ? (
+                    <span className="self-center text-xs text-slate-400">
+                      {chosen ? '🔒 Fester Pick (Unterschrift/Side Deal).' : 'Dein Pick von diesem Team ist bereits festgelegt.'}
+                    </span>
+                  ) : blockedPlayers(draft).has(p.id) ? (
+                    <span className="self-center text-xs text-rose-300">Per Side Deal ausgeschlossen.</span>
+                  ) : isPendingUfa(p) ? (
                     <span className="self-center text-xs text-slate-400">{RULE_TIPS.pendingUfa}</span>
                   ) : (
                     <Button onClick={() => select(origTeamId, chosen ? null : p.id)}>{chosen ? 'Pick entfernen' : `Von ${team?.abbrev} wählen`}</Button>
