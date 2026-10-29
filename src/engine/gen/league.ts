@@ -281,7 +281,8 @@ export function generateLeague(seed: string, cfg: LeagueConfig = defaultConfig()
 
   EXISTING_TEAMS.slice(0, cfg.existingTeams).forEach((def, i) => {
     const rng = rngFor(seed, 'gen', 'team', i);
-    const quality = Math.max(-5, Math.min(5, rng.normal(0, 2.4)));
+    // Team quality spread; kept moderate so that no generated team becomes a 140-point juggernaut.
+    const quality = Math.max(-4, Math.min(4, rng.normal(0, 2.0)));
     const logoRng = rngFor(seed, 'gen', 'logo', i);
     const colors = { primary: def.primary, secondary: def.secondary, accent: '#e5e7eb' };
     const team: Team = {

@@ -43,7 +43,6 @@ export function Header() {
               </div>
             );
           })}
-          <span className="ml-2 hidden text-xs text-slate-500 lg:inline">→ Playoffs (folgen)</span>
         </nav>
         <div className="text-right text-[11px] leading-tight text-slate-400">
           <div>

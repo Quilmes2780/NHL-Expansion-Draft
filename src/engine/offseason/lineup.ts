@@ -81,6 +81,9 @@ export function autoLineup(league: League, teamId: string): Lineup {
     const right = take('D', (p) => p.position === 'D' && p.shoots === 'R') ?? take('D', (p) => p.position === 'D');
     l.defense[i] = [left, right];
   }
+  // Not enough natural forwards/defensemen: fill the holes with any healthy skater (off-position).
+  l.forwards = l.forwards.map((line) => line.map((id, j) => id ?? take((['LW', 'C', 'RW'] as const)[j] ?? 'C')) as [Slot, Slot, Slot]);
+  l.defense = l.defense.map((pair) => pair.map((id) => id ?? take('D')) as [Slot, Slot]);
   const goalies = pool.filter((p) => p.position === 'G');
   l.goalies = [goalies[0]?.id ?? null, goalies[1]?.id ?? null];
 

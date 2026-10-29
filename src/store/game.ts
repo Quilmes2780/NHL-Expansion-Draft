@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  PlayoffState,
   BoxScore,
   DayResult,
   SeasonOptions,
@@ -19,6 +20,8 @@ import type {
 } from '../engine';
 import {
   EXPANSION_TEAM_ID,
+  simPlayoffDay,
+  startPlayoffs as startPlayoffsEngine,
   demoteWithWaivers,
   seasonReadiness,
   simDay,
@@ -55,7 +58,7 @@ import {
   toggleWishlist,
 } from '../engine';
 
-export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results' | 'offseason' | 'season';
+export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results' | 'offseason' | 'season' | 'playoffs' | 'summary';
 
 export const PHASES: { id: Phase; label: string }[] = [
   { id: 'founding', label: 'Gründung' },
@@ -66,7 +69,11 @@ export const PHASES: { id: Phase; label: string }[] = [
   { id: 'results', label: 'Bilanz' },
   { id: 'offseason', label: 'Offseason' },
   { id: 'season', label: 'Saison' },
+  { id: 'playoffs', label: 'Playoffs' },
+  { id: 'summary', label: 'Saisonbilanz' },
 ];
+
+export type PlayoffSimTarget = 'day' | 'round' | 'end';
 
 export type SimTarget = 'day' | 'week' | 'deadline' | 'end';
 
@@ -131,12 +138,18 @@ interface GameStore {
   setSeasonOption: (o: Partial<SeasonOptions>) => void;
   setTicker: (on: boolean) => void;
   clearBoxes: () => void;
+
+  playoffs: PlayoffState | null;
+  startPlayoffs: () => void;
+  simulatePlayoffs: (target: PlayoffSimTarget) => Promise<void>;
+  finishSeason: () => void;
 }
 
-/** The lineup the user is currently editing (offseason or season). */
-export const selectMyLineup = (s: GameStore): Lineup | null => s.season?.lineups[EXPANSION_TEAM_ID] ?? s.off?.lineup ?? null;
+/** The lineup the user is currently editing (offseason, season or playoffs). */
+export const selectMyLineup = (s: GameStore): Lineup | null =>
+  s.playoffs?.season.lineups[EXPANSION_TEAM_ID] ?? s.season?.lineups[EXPANSION_TEAM_ID] ?? s.off?.lineup ?? null;
 
-const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results', 'offseason', 'season'];
+const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results', 'offseason', 'season', 'playoffs', 'summary'];
 /** Phases the player can move between freely until the draft list is submitted. */
 const OPEN_PHASES: Phase[] = ['reveal', 'window', 'draft'];
 export const phaseIndex = (p: Phase): number => ORDER.indexOf(p);
@@ -170,6 +183,7 @@ export const useGame = create<GameStore>((set, get) => ({
       offLeague: null,
       off: null,
       season: null,
+      playoffs: null,
       lastBoxes: [],
       phase: 'founding',
       maxPhase: 'founding',
@@ -266,6 +280,7 @@ export const useGame = create<GameStore>((set, get) => ({
       offLeague: null,
       off: null,
       season: null,
+      playoffs: null,
       lastBoxes: [],
     }),
 
@@ -364,8 +379,10 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   setLineup: (l) => {
-    const { off, season } = get();
-    if (season) set({ season: { ...season, lineups: { ...season.lineups, [EXPANSION_TEAM_ID]: l } } });
+    const { off, season, playoffs } = get();
+    if (playoffs)
+      set({ playoffs: { ...playoffs, season: { ...playoffs.season, lineups: { ...playoffs.season.lineups, [EXPANSION_TEAM_ID]: l } } } });
+    else if (season) set({ season: { ...season, lineups: { ...season.lineups, [EXPANSION_TEAM_ID]: l } } });
     else if (off) set({ off: { ...off, lineup: l } });
   },
 
@@ -402,7 +419,9 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!offLeague || !off) return ['Keine Offseason aktiv.'];
     const issues = seasonReadiness(offLeague, EXPANSION_TEAM_ID, off.lineup).map((i) => i.message);
     if (issues.length) return issues;
-    const r = startSeasonEngine(offLeague, off.lineup);
+    // Roles promised in the negotiation window are tracked for player morale.
+    const promises = Object.fromEntries(Object.values(get().draft?.signings ?? {}).map((sg) => [sg.playerId, sg.role]));
+    const r = startSeasonEngine(offLeague, off.lineup, {}, undefined, promises);
     set({ offLeague: r.league, season: r.state, phase: 'season', maxPhase: 'season', lastBoxes: [] });
     return [];
   },
@@ -445,4 +464,40 @@ export const useGame = create<GameStore>((set, get) => ({
 
   setTicker: (on) => set({ tickerEnabled: on }),
   clearBoxes: () => set({ lastBoxes: [] }),
+
+  playoffs: null,
+
+  startPlayoffs: () => {
+    const { offLeague, season, playoffs } = get();
+    if (playoffs) return set({ phase: 'playoffs' });
+    if (!offLeague || !season?.done) return;
+    set({ playoffs: startPlayoffsEngine(offLeague, season), phase: 'playoffs', maxPhase: 'playoffs', lastBoxes: [] });
+  },
+
+  simulatePlayoffs: async (target) => {
+    if (get().simulating) return;
+    const start = get().playoffs;
+    if (!start) return;
+    set({ simulating: true, lastBoxes: [] });
+    const boxes: BoxScore[] = [];
+    try {
+      for (;;) {
+        const { offLeague, playoffs } = get();
+        if (!offLeague || !playoffs || playoffs.champion) break;
+        if (target === 'day' && playoffs.season.day > start.season.day) break;
+        if (target === 'round' && playoffs.round > start.round) break;
+        const r = simPlayoffDay(offLeague, playoffs);
+        boxes.push(...r.userBoxes);
+        set({ offLeague: r.league, playoffs: r.po });
+        await new Promise((res) => setTimeout(res, 0));
+      }
+    } finally {
+      set({ simulating: false, lastBoxes: target === 'end' ? [] : boxes });
+    }
+  },
+
+  finishSeason: () => {
+    const { season, playoffs } = get();
+    if (season?.done && (!playoffs || playoffs.champion)) set({ phase: 'summary', maxPhase: 'summary' });
+  },
 }));

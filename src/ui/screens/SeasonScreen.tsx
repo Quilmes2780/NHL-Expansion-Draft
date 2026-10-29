@@ -14,6 +14,7 @@ import { useGame } from '../../store/game';
 import { BoxScoreModal } from '../components/BoxScoreView';
 import { Logo } from '../components/Logo';
 import { Button, Panel, Tip } from '../components/ui';
+import { NewsFeed, OwnerFansPanel } from '../components/WorldPanels';
 import { LineupTab } from './offseason/LineupTab';
 import { TradesTab } from './offseason/TradesTab';
 import { StandingsTab } from './season/StandingsTab';
@@ -22,7 +23,7 @@ import { StatsTab } from './season/StatsTab';
 type Tab = 'overview' | 'schedule' | 'standings' | 'stats' | 'lineup' | 'trades';
 
 export function SeasonScreen() {
-  const { offLeague, season, simulate, simulating, lastBoxes, tickerEnabled, setTicker, clearBoxes, setSeasonOption } = useGame();
+  const { offLeague, season, simulate, simulating, lastBoxes, tickerEnabled, setTicker, clearBoxes, setSeasonOption, startPlayoffs } = useGame();
   const [tab, setTab] = useState<Tab>('overview');
   const [openBoxes, setOpenBoxes] = useState<BoxScore[] | null>(null);
   const table = useMemo(() => (offLeague && season ? standings(offLeague, season) : []), [offLeague, season]);
@@ -117,9 +118,12 @@ export function SeasonScreen() {
       {openBoxes && <BoxScoreModal boxes={openBoxes} league={offLeague} animate={false} onClose={() => setOpenBoxes(null)} />}
       {season.done && (
         <Panel>
-          <p className="p-4 text-sm text-slate-300">
-            Die reguläre Saison ist vorbei. Playoffs, Saisonabschluss, Awards und Newsfeed folgen in Meilenstein M7.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <p className="text-sm text-slate-300">Die reguläre Saison ist vorbei. Jetzt entscheidet sich, wer um den Titel spielt.</p>
+            <Button className="animate-glow" onClick={startPlayoffs}>
+              Zu den Playoffs →
+            </Button>
+          </div>
         </Panel>
       )}
       <p className="text-right text-xs text-slate-500">Payroll {formatMoney(teamPayroll(offLeague, EXPANSION_TEAM_ID))}</p>
@@ -254,7 +258,10 @@ function Overview({ onOpen, onGoalieMode }: { onOpen: (b: BoxScore[]) => void; o
         </ul>
       </Panel>
 
-      <Panel title="Ereignisse" className="lg:col-span-2">
+      <OwnerFansPanel league={offLeague} meta={season.meta} />
+      <NewsFeed news={season.news} className="lg:col-span-2" />
+
+      <Panel title="Ereignisse" className="lg:col-span-3">
         <ul className="max-h-72 space-y-1 overflow-auto p-4 text-xs">
           {[...season.log].reverse().slice(0, 40).map((e, i) => (
             <li key={i} className={e.kind === 'injury' ? 'text-rose-300' : e.kind === 'return' ? 'text-emerald-300' : e.kind === 'trade' || e.kind === 'waiver' ? 'text-amber-200' : 'text-slate-400'}>

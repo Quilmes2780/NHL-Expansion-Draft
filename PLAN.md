@@ -1,6 +1,6 @@
 # PLAN – "Team 33 – NHL Expansion Draft GM"
 
-Status: **M1–M6 abgeschlossen** (je ein Commit). Als Nächstes: M7 Playoffs, Saisonabschluss, Newsfeed, Owner/Fans.
+Status: **M1–M7 abgeschlossen** (je ein Commit). Als Nächstes: M8 Speichern/Laden, Import/Export, Feinschliff, Tutorial.
 
 Abweichungen/Ergänzungen gegenüber dem Plan:
 - Kein ESLint; die Engine-Regeln (keine UI-Imports, kein `Math.random`/`Date.now`/DOM) prüft ein Architekturtest.
@@ -17,6 +17,9 @@ Abweichungen/Ergänzungen gegenüber dem Plan:
   bedienbar. Box Scores werden nur für eigene Spiele gespeichert. OT-Quote ~17 % (keine Score-Effekte/Empty-Netter).
   Rollenversprechen wirken noch nicht auf die Moral (kommt mit M7 zusammen mit Fan-/Owner-Stimmung).
   `playersOfTeam` ist per Player-Record gecacht – Player-Records daher nie in-place verändern.
+- M7: Playoffs laufen durch denselben Saison-Loop (Verletzungen/Form/Ermüdung bleiben), mit eigener Statistik.
+  Achievements werden pro Spielstand ausgewertet; eine spielübergreifende Achievement-Übersicht kommt mit der
+  Persistenz in M8. Rollenversprechen gelten für Unterschriften im Verhandlungsfenster (nicht für Free Agency).
 - Generator: Cap Hits beim Payroll-Fitting auf max. 2× Marktwert begrenzt; fehlt dann Payroll bis zum Floor,
   verlängern Teams einige ihrer pending FAs.
 

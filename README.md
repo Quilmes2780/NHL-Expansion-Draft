@@ -4,8 +4,8 @@ Browserbasiertes Single-Player-Managementspiel: Du gründest das 33. Franchise e
 und baust deinen Kader über einen regelkonformen Expansion Draft auf. Alle Teams, Spieler und Namen sind prozedural
 generiert – keine echten Logos, Marken oder Spieler.
 
-**Stand:** Meilensteine M1–M6 (Liga-Generator, Regel-Engine, Draft-UI, Verhandlungsfenster + Side Deals, Offseason,
-Saisonsimulation). Playoffs, Saisonabschluss und Speichern folgen (siehe [PLAN.md](PLAN.md)).
+**Stand:** Meilensteine M1–M7 – ein kompletter Durchlauf Gründung → Draft → Offseason → 82 Spiele → Playoffs →
+Saisonbilanz ist spielbar. Speichern/Laden, JSON-Import/Export und Tutorial folgen in M8 (siehe [PLAN.md](PLAN.md)).
 
 ## Starten
 
@@ -68,6 +68,19 @@ Doppelklick (`file://`), ohne Server.
    - *Tabellen & Statistiken:* Divisionen, Wildcard, Conferences, Liga (Punkte, P%, ROW, Tordifferenz, L10, Serie);
      Scorer, Goalies, Teamwerte (PP%, PK%, Schüsse).
 
+10. **Owner, Fans & Newsfeed:** Fan-Stimmung reagiert auf jedes Spiel (Heimsiege und Playoffs zählen mehr) und
+    pendelt zur Hockey-Tradition der Stadt zurück; daraus folgt die Zuschauerzahl (Arena-Kapazität). Die
+    Owner-Zufriedenheit wird wöchentlich am Mandat gemessen (Sofort Playoffs: Punkteschnitt/Playoff-Platz;
+    Geduldiger Aufbau: Entwicklung und Fans; Budget-Owner: Cap Space und Auslastung). Rollenversprechen aus dem
+    Verhandlungsfenster wirken auf Moral und Form. Der Newsfeed generiert Schlagzeilen (erster Sieg, Hattricks,
+    Shutouts, Serien, lange Verletzungen, Trade Deadline, Playoff-Serien, Meister).
+11. **Playoffs:** Top 3 je Division + 2 Wildcards je Conference, 4 Runden Best-of-7, Heimrecht 2-2-1-1-1 für das in
+    der Saison bessere Team, Overtime als 20-Minuten-Sudden-Death (kein Shootout). Bracket-Ansicht, Playoff-Scorer.
+12. **Saisonbilanz:** Owner-Note (A–F) mit Urteil, Bilanz und Playoff-Ergebnis, Fans/Zuschauer, fiktive Trophäen
+    (Northern Star Trophy, Golden Stick, Sniper Award, Iron Mask Award, Blue Line Trophy, Rising Star Award,
+    Gentleman Cup), Expansion-Draft-Rückblick (beste/schlechteste Picks), 18 Achievements, Neustart mit gleichem
+    oder neuem Seed.
+
 ### Spiel-Engine
 
 - Teamstärke aus Reihen-Ratings, gewichtet nach Eiszeit (Sturmreihen 35/30/22/13 %, Verteidigerpaare 42/35/23 %),
@@ -96,7 +109,8 @@ src/
                    Constraint-Tracker, Mock-Draft, Noten, Scouting, Analysten, Draft-State,
                    Verhandlungen, Side Deals
     offseason/     Lotterie + Entry Draft, Free Agency, Trade-Bewertung, Aufstellung/Kader
-    sim/           Spielplan, Spiel-Engine, Saison-Loop, Tabellen/Statistiken, Headless-Testkit
+    sim/           Spielplan, Spiel-Engine, Saison-Loop, Playoffs, Tabellen/Statistiken, Headless-Testkit
+    world/         Owner/Fans/Zuschauer/Moral, Newsfeed, Awards, Draft-Rückblick, Achievements
   store/           Zustand-Store (dünne Hülle um Engine-Aufrufe)
   ui/              React-Komponenten und Screens (Tailwind)
 ```

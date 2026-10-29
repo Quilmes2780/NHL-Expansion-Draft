@@ -158,7 +158,14 @@ function goalProb(base: number, shooter: Player, goalie: number): number {
   return Math.min(0.5, base * Math.exp(0.02 * (attr(shooter, 'shooting') + shooter.form * 0.3 - 70)) * Math.exp(-0.018 * (goalie - 75)));
 }
 
-export function simulateGame(league: League, gameId: string, home: TeamGameInput, away: TeamGameInput, seed: string): BoxScore {
+export function simulateGame(
+  league: League,
+  gameId: string,
+  home: TeamGameInput,
+  away: TeamGameInput,
+  seed: string,
+  opts: { playoff?: boolean } = {},
+): BoxScore {
   const rng = rngFor(seed, 'game', gameId);
   const H = prepare(league, home, rng);
   const A = prepare(league, away, rng);
@@ -258,10 +265,14 @@ export function simulateGame(league: League, gameId: string, home: TeamGameInput
   const shootout: BoxScore['shootout'] = [];
   if (teams[home.teamId]!.goals === teams[away.teamId]!.goals) {
     decision = 'OT';
-    const lamH = 0.45 * Math.exp(0.03 * (H.off - A.def)) * Math.exp(-0.02 * (A.goalieRating - 75));
-    const lamA = 0.45 * Math.exp(0.03 * (A.off - H.def)) * Math.exp(-0.02 * (H.goalieRating - 75));
-    const tH = -Math.log(1 - rng.next()) / lamH * OT_LENGTH;
-    const tA = -Math.log(1 - rng.next()) / lamA * OT_LENGTH;
+    // Regular season: 5 min 3-on-3, then shootout. Playoffs: 20-min 5-on-5 periods, sudden death.
+    const playoff = !!opts.playoff;
+    const base = playoff ? 1.0 : 0.45;
+    const len = playoff ? PERIOD : OT_LENGTH;
+    const lamH = base * Math.exp(0.03 * (H.off - A.def)) * Math.exp(-0.02 * (A.goalieRating - 75));
+    const lamA = base * Math.exp(0.03 * (A.off - H.def)) * Math.exp(-0.02 * (H.goalieRating - 75));
+    const tH = (-Math.log(1 - rng.next()) / lamH) * len;
+    const tA = (-Math.log(1 - rng.next()) / lamA) * len;
     const t = Math.min(tH, tA);
     // A few shots in overtime for the stats.
     for (const [T, n] of [
@@ -270,7 +281,7 @@ export function simulateGame(league: League, gameId: string, home: TeamGameInput
     ] as const) {
       teams[T.input.teamId]!.shots += n;
     }
-    if (t < OT_LENGTH) {
+    if (playoff || t < OT_LENGTH) {
       const team = tH < tA ? H : A;
       const O = other(team.input.teamId);
       const scorers = [...(team.fLines[0]?.players ?? []), ...(team.dPairs[0]?.players ?? [])];
@@ -283,7 +294,15 @@ export function simulateGame(league: League, gameId: string, home: TeamGameInput
       for (const a of assists) sl(a).a++;
       teams[team.input.teamId]!.goals++;
       ga[O.input.teamId]!++;
-      events.push({ period: 4, time: t, type: 'goal', teamId: team.input.teamId, playerId: shooter.id, assists, strength: 'OT' });
+      events.push({
+        period: playoff ? 4 + Math.floor(t / PERIOD) : 4,
+        time: playoff ? t % PERIOD : t,
+        type: 'goal',
+        teamId: team.input.teamId,
+        playerId: shooter.id,
+        assists,
+        strength: 'OT',
+      });
     } else {
       decision = 'SO';
       const shooters = (T: PreparedTeam) => [...T.fLines.flatMap((u) => u.players)].sort((a, b) => attr(b, 'shooting') - attr(a, 'shooting')).slice(0, 6);

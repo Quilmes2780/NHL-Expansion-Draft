@@ -15,6 +15,12 @@ import type { BoxScore, TeamGameInput } from './game';
 import { simulateGame } from './game';
 import type { ScheduledGame } from './schedule';
 import { dayLabel, generateSchedule } from './schedule';
+import { standings, wildcardStandings } from './standings';
+import type { Role } from '../expansion/negotiation';
+import type { FranchiseMeta } from '../world/meta';
+import { afterUserGame, initMeta, weeklyMorale, weeklyOwnerUpdate } from '../world/meta';
+import type { NewsItem } from '../world/news';
+import { newsForDay } from '../world/news';
 
 export type GoalieMode = 'auto' | 'starter' | 'rotate';
 
@@ -89,6 +95,9 @@ export interface SeasonState {
   options: SeasonOptions;
   log: SeasonEvent[];
   done: boolean;
+  phase: 'regular' | 'playoffs';
+  news: NewsItem[];
+  meta: FranchiseMeta;
 }
 
 const CHEM_START = 65;
@@ -101,6 +110,7 @@ export function startSeason(
   userLineup: Lineup,
   options: Partial<SeasonOptions> = {},
   seasonSeed = `${league.seed}|season${league.config.seasonStartYear}`,
+  promises: Record<string, Role> = {},
 ): { league: League; state: SeasonState } {
   // AI teams: balanced NHL rosters from everyone under contract.
   const players = { ...league.players };
@@ -140,6 +150,17 @@ export function startSeason(
       options: { misfitsBonus: true, goalieMode: 'auto', ...options },
       log: [{ day: 0, teamId: null, kind: 'info', text: `Saisonstart am ${dayLabel(0)} – ${sched.games.length} Spiele, Trade Deadline am ${dayLabel(sched.deadlineDay)}.` }],
       done: false,
+      phase: 'regular',
+      news: [
+        {
+          day: 0,
+          headline: `Der große Tag: Die ${lg.teams.find((t) => t.isExpansion)?.city ?? ''} ${lg.teams.find((t) => t.isExpansion)?.name ?? ''} starten in ihre erste Saison`,
+          body: `Die Liga zählt jetzt 33 Teams. Trade Deadline ist am ${dayLabel(sched.deadlineDay)}.`,
+          tone: 'neutral',
+          teamId: EXPANSION_TEAM_ID,
+        },
+      ],
+      meta: initMeta(lg, promises),
     },
   };
 }
@@ -253,7 +274,7 @@ function teamInput(league: League, s: SeasonState, team: Team, lineup: Lineup, d
   if (last && distanceKm(last, venue) > 2000) fatigue += 0.01;
   const chem = s.chemistry[team.id] ?? CHEM_START;
   let bonus = (chem - 60) * 0.04;
-  if (team.isExpansion && s.options.misfitsBonus) {
+  if (team.isExpansion && s.options.misfitsBonus && s.phase === 'regular') {
     const gp = Object.values(s.results).filter((r) => r.home === team.id || r.away === team.id).length;
     if (gp < MISFIT_GAMES) bonus += MISFIT_BONUS;
   }
@@ -340,12 +361,14 @@ export function simDay(league: League, s0: SeasonState): DayResult {
 
   const players = { ...lg.players };
   const injuredToday: string[] = [];
+  const dayBoxes: BoxScore[] = [];
   for (const g of todays) {
     const home = lg.teams.find((t) => t.id === g.home) as Team;
     const away = lg.teams.find((t) => t.id === g.away) as Team;
     const hi = teamInput(lg, s, home, s.lineups[home.id] as Lineup, day, g);
     const ai = teamInput(lg, s, away, s.lineups[away.id] as Lineup, day, g);
-    const box = simulateGame(lg, g.id, hi, ai, s.seasonSeed);
+    const box = simulateGame(lg, g.id, hi, ai, s.seasonSeed, { playoff: s.phase === 'playoffs' });
+    dayBoxes.push(box);
     s.results[g.id] = {
       id: g.id,
       day,
@@ -399,10 +422,55 @@ export function simDay(league: League, s0: SeasonState): DayResult {
   }
   lg = { ...lg, players };
   for (const t of playing) lg = trimRoster(lg, t, s.emergency);
+
+  // Fans, attendance and the newsfeed.
+  const playoff = s.phase === 'playoffs';
+  const isMine = (r: GameSummary) => r.home === EXPANSION_TEAM_ID || r.away === EXPANSION_TEAM_ID;
+  const wonBy = (r: GameSummary, t: string) => (r.home === t ? r.homeGoals > r.awayGoals : r.awayGoals > r.homeGoals);
+  for (const box of userBoxes) {
+    const r = s.results[box.gameId] as GameSummary;
+    const home = r.home === EXPANSION_TEAM_ID;
+    const gf = home ? r.homeGoals : r.awayGoals;
+    const ga = home ? r.awayGoals : r.homeGoals;
+    s.meta = afterUserGame(lg, s.meta, r.id, home, gf > ga, r.decision, Math.abs(gf - ga), playoff);
+  }
+  const prior = Object.values(s0.results).filter(isMine);
+  const myResults = Object.values(s.results)
+    .filter(isMine)
+    .sort((a, b) => a.day - b.day);
+  s.news = [
+    ...s.news,
+    ...newsForDay(lg, dayBoxes, {
+      seed: s.seasonSeed,
+      day,
+      playoff,
+      priorGames: prior.length,
+      priorWins: prior.filter((r) => wonBy(r, EXPANSION_TEAM_ID)).length,
+      priorHomeWins: prior.filter((r) => r.home === EXPANSION_TEAM_ID && wonBy(r, EXPANSION_TEAM_ID)).length,
+      myResults,
+    }),
+  ];
+
   s.day = day + 1;
-  if (s.games.every((g) => s.results[g.id])) {
+  const regularOver = !playoff && s.games.every((g) => s.results[g.id]);
+  // Weekly: owner verdict and promised roles.
+  if (!playoff && (day % 7 === 6 || regularOver)) {
+    const row = standings(lg, s).find((x) => x.teamId === EXPANSION_TEAM_ID);
+    const inSpot = wildcardStandings(lg, s).some((c) => [...c.divisions.flatMap((d) => d.top), ...c.wildcards].some((x) => x.teamId === EXPANSION_TEAM_ID));
+    s.meta = weeklyOwnerUpdate(lg, s.meta, day, row?.pts ?? 0, row?.gp ?? 0, inSpot);
+    const morale = weeklyMorale(lg, s.meta, s.lineups[EXPANSION_TEAM_ID] as Lineup, day);
+    lg = { ...lg, players: morale.players };
+    s.meta = morale.meta;
+    for (const m of morale.messages) s.news.push({ day, headline: 'Unruhe in der Kabine', body: m, tone: 'bad', teamId: EXPANSION_TEAM_ID });
+  }
+  if (!playoff && day === s.deadlineDay)
+    s.news.push({ day, headline: 'Heute ist Trade Deadline', body: 'Nach dem heutigen Tag sind bis Saisonende keine Trades mehr möglich.', tone: 'neutral', teamId: null });
+  if (regularOver) {
     s.done = true;
     s.log.push({ day, teamId: null, kind: 'info', text: 'Die reguläre Saison ist beendet.' });
+    const top = standings(lg, s)[0];
+    const leader = top ? lg.teams.find((t) => t.id === top.teamId) : null;
+    s.news.push({ day, headline: 'Die reguläre Saison ist vorbei', body: leader ? `${leader.city} ${leader.name} gewinnen mit ${top?.pts} Punkten die Liga-Wertung.` : '', tone: 'neutral', teamId: null });
   }
   return { league: lg, state: s, userBoxes };
 }

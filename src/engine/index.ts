@@ -25,3 +25,7 @@ export * from './sim/schedule';
 export * from './sim/game';
 export * from './sim/season';
 export * from './sim/standings';
+export * from './sim/playoffs';
+export * from './world/meta';
+export * from './world/news';
+export * from './world/summary';
