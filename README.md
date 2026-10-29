@@ -4,7 +4,7 @@ Browserbasiertes Single-Player-Managementspiel: Du gründest das 33. Franchise e
 und baust deinen Kader über einen regelkonformen Expansion Draft auf. Alle Teams, Spieler und Namen sind prozedural
 generiert – keine echten Logos, Marken oder Spieler.
 
-**Stand:** Meilensteine M1–M4 (Liga-Generator, Regel-Engine, Draft-UI, Verhandlungsfenster + Side Deals). Offseason, Saison und Playoffs folgen (siehe [PLAN.md](PLAN.md)).
+**Stand:** Meilensteine M1–M5 (Liga-Generator, Regel-Engine, Draft-UI, Verhandlungsfenster + Side Deals, Offseason). Saison und Playoffs folgen (siehe [PLAN.md](PLAN.md)).
 
 ## Starten
 
@@ -42,6 +42,21 @@ Doppelklick (`file://`), ohne Server.
 7. **Bilanz:** Vergleich mit dem KI-Mock-Draft („Was die KI gewählt hätte“ – ohne Deals und Unterschriften),
    beste Picks, verpasste Chancen, Unterschriften und erhaltene Assets.
 
+8. **Offseason:**
+   - *Lotterie & Entry Draft:* Das Expansionsteam bekommt die Quoten des drittschlechtesten Teams (2 Ziehungen,
+     max. 10 Plätze Sprung). 7 Runden; die KI pickt bis du dran bist. Prospects nur als Spannen, eigenes
+     Scouting-Budget; Auto-Pick nutzt nur gescoutete Werte.
+   - *Free Agency:* KI-Teams verlängern zuerst einen Teil ihrer pending FAs, der Rest geht auf den Markt. Über
+     5 Tage bieten du und die KI (nach Bedarf und Cap Space); jeder Spieler wählt das für ihn beste Angebot (Geld,
+     Laufzeit, Rolle, Team-/Stadtfaktor). Offene Angebote blockieren Cap Space. Eigene pending RFAs verlängerst du
+     exklusiv per Verhandlung.
+   - *Trades:* Die KI bewertet Spieler exponentiell (Stars ≫ Tiefe) nach ihrer Strategie, Pakete mit abnehmendem
+     Grenznutzen, verlangt einen Aufschlag (je nach Schwierigkeit 5–30 %), prüft Cap, 50-Vertrags-Limit und
+     Goalie-Tiefe. NTC/NMC-Spieler sind nicht handelbar.
+   - *Kader & Aufstellung:* NHL-Kader (max. 23) vs. Farmteam, 4 Sturmreihen, 3 Verteidigerpaare, Goalie-Tandem,
+     PP1/PP2, PK1/PK2, Kapitän/Assistenten; Auto-Aufstellung; Positionsstrafen für Spieler außerhalb ihrer Position.
+   - Vor dem Saisonstart prüft das Spiel Kadergröße (20–23, ≥ 12 F, ≥ 6 D, ≥ 2 G), Cap Floor/Cap und Aufstellung.
+
 ## Architektur
 
 ```
@@ -55,7 +70,9 @@ src/
     gen/           Spieler- und Liga-Generator
     data/          Städte, Namenspools
     expansion/     Eligibility, Schutzlisten (Validierung + KI), Auswahl-Validierung,
-                   Constraint-Tracker, Mock-Draft, Noten, Scouting, Analysten, Draft-State
+                   Constraint-Tracker, Mock-Draft, Noten, Scouting, Analysten, Draft-State,
+                   Verhandlungen, Side Deals
+    offseason/     Lotterie + Entry Draft, Free Agency, Trade-Bewertung, Aufstellung/Kader
   store/           Zustand-Store (dünne Hülle um Engine-Aufrufe)
   ui/              React-Komponenten und Screens (Tailwind)
 ```
@@ -94,7 +111,9 @@ heißt `contract.yearsLeft >= 1`. Payroll = Summe der Cap Hits aller aktiven Spi
 
 ## Vereinfachungen
 
-Keine Arbitration, Buyouts, LTIR oder Bonus-Overages; Farmteam-Gehälter zählen nicht zur Payroll.
+Keine Arbitration, Buyouts, LTIR oder Bonus-Overages. Im Farmteam zählen nur One-Way-Verträge gegen den Cap
+(Two-Way- und Entry-Level-Verträge nicht). Nicht verlängerte eigene RFAs werden nach der Free Agency vertragslos.
+Gedraftete Prospects bleiben ungesignt im Farmteam.
 
 ## JSON-Import eigener Ligadaten
 

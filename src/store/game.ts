@@ -5,11 +5,31 @@ import type {
   ExpansionRules,
   FranchiseOptions,
   League,
+  Lineup,
   Offer,
+  OffseasonState,
   RuleSetId,
+  TradeEvaluation,
+  TradeProposal,
   Violation,
 } from '../engine';
 import {
+  EXPANSION_TEAM_ID,
+  advanceFaDay,
+  autoLineup as autoLineupFor,
+  autoUserPick,
+  finishEntryDraft,
+  finishFreeAgency,
+  offerOwnRfa,
+  placeUserOffer,
+  proposeTrade,
+  scoutProspect,
+  setFarm,
+  simEntryDraft,
+  simToUserPick,
+  startOffseason,
+  userDraftPick,
+  withdrawUserOffer,
   acceptDeal,
   autoFillSelection,
   clearSelection,
@@ -26,7 +46,7 @@ import {
   toggleWishlist,
 } from '../engine';
 
-export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results';
+export type Phase = 'start' | 'founding' | 'reveal' | 'window' | 'draft' | 'night' | 'results' | 'offseason';
 
 export const PHASES: { id: Phase; label: string }[] = [
   { id: 'founding', label: 'Gründung' },
@@ -35,6 +55,7 @@ export const PHASES: { id: Phase; label: string }[] = [
   { id: 'draft', label: 'Draft Board' },
   { id: 'night', label: 'Draft-Abend' },
   { id: 'results', label: 'Bilanz' },
+  { id: 'offseason', label: 'Offseason' },
 ];
 
 interface GameStore {
@@ -68,9 +89,28 @@ interface GameStore {
   declineDeal: (dealId: string) => void;
   submit: () => boolean;
   reset: () => void;
+
+  /** The league during the offseason (after the expansion draft). */
+  offLeague: League | null;
+  off: OffseasonState | null;
+  startOffseason: () => void;
+  edPick: (playerId: string) => void;
+  edAuto: () => void;
+  edSimAll: () => void;
+  edScout: (playerId: string) => void;
+  finishDraft: () => void;
+  faOffer: (playerId: string, offer: Offer) => string | null;
+  faWithdraw: (playerId: string) => void;
+  faOwnRfa: (playerId: string, offer: Offer) => void;
+  faAdvance: () => void;
+  finishFa: () => void;
+  trade: (t: TradeProposal) => TradeEvaluation | null;
+  setLineup: (l: Lineup) => void;
+  autoLineup: () => void;
+  toggleFarm: (playerId: string) => string | null;
 }
 
-const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results'];
+const ORDER: Phase[] = ['start', 'founding', 'reveal', 'window', 'draft', 'night', 'results', 'offseason'];
 /** Phases the player can move between freely until the draft list is submitted. */
 const OPEN_PHASES: Phase[] = ['reveal', 'window', 'draft'];
 export const phaseIndex = (p: Phase): number => ORDER.indexOf(p);
@@ -184,5 +224,121 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   reset: () =>
-    set({ phase: 'start', maxPhase: 'start', league: null, postDraftLeague: null, draft: null, violations: [], compare: [], modalPlayerId: null }),
+    set({
+      phase: 'start',
+      maxPhase: 'start',
+      league: null,
+      postDraftLeague: null,
+      draft: null,
+      violations: [],
+      compare: [],
+      modalPlayerId: null,
+      offLeague: null,
+      off: null,
+    }),
+
+  offLeague: null,
+  off: null,
+
+  startOffseason: () => {
+    const { postDraftLeague, off } = get();
+    if (!postDraftLeague) return;
+    if (off) return set({ phase: 'offseason' });
+    const r = startOffseason(postDraftLeague);
+    set({ offLeague: r.league, off: r.state, phase: 'offseason', maxPhase: 'offseason' });
+  },
+
+  edPick: (playerId) => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off) return;
+    const a = userDraftPick(offLeague, off.draft, playerId);
+    const b = simToUserPick(a.league, a.state);
+    set({ offLeague: b.league, off: { ...off, draft: b.state } });
+  },
+
+  edAuto: () => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off) return;
+    const a = autoUserPick(offLeague, off.draft);
+    const b = simToUserPick(a.league, a.state);
+    set({ offLeague: b.league, off: { ...off, draft: b.state } });
+  },
+
+  edSimAll: () => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off) return;
+    const r = simEntryDraft(offLeague, off.draft);
+    set({ offLeague: r.league, off: { ...off, draft: r.state } });
+  },
+
+  edScout: (playerId) => {
+    const off = get().off;
+    if (off) set({ off: { ...off, draft: scoutProspect(off.draft, playerId) } });
+  },
+
+  finishDraft: () => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off) return;
+    const r = finishEntryDraft(offLeague, off);
+    set({ offLeague: r.league, off: r.state });
+  },
+
+  faOffer: (playerId, offer) => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off?.fa) return null;
+    const r = placeUserOffer(offLeague, off.fa, playerId, offer);
+    if (!r.error) set({ off: { ...off, fa: r.state } });
+    return r.error;
+  },
+
+  faWithdraw: (playerId) => {
+    const off = get().off;
+    if (off?.fa) set({ off: { ...off, fa: withdrawUserOffer(off.fa, playerId) } });
+  },
+
+  faOwnRfa: (playerId, offer) => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off?.fa) return;
+    const r = offerOwnRfa(offLeague, off.fa, playerId, offer);
+    set({ offLeague: r.league, off: { ...off, fa: r.state } });
+  },
+
+  faAdvance: () => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off?.fa) return;
+    const r = advanceFaDay(offLeague, off.fa);
+    set({ offLeague: r.league, off: { ...off, fa: r.state } });
+  },
+
+  finishFa: () => {
+    const off = get().off;
+    if (off) set({ off: finishFreeAgency(off) });
+  },
+
+  trade: (t) => {
+    const { offLeague, off } = get();
+    if (!offLeague || !off) return null;
+    const r = proposeTrade(offLeague, off, t);
+    if (r.evaluation.accepted) set({ offLeague: r.league, off: r.state });
+    return r.evaluation;
+  },
+
+  setLineup: (l) => {
+    const off = get().off;
+    if (off) set({ off: { ...off, lineup: l } });
+  },
+
+  autoLineup: () => {
+    const { offLeague, off } = get();
+    if (offLeague && off) set({ off: { ...off, lineup: autoLineupFor(offLeague, EXPANSION_TEAM_ID) } });
+  },
+
+  toggleFarm: (playerId) => {
+    const { offLeague } = get();
+    const p = offLeague?.players[playerId];
+    if (!offLeague || !p) return null;
+    const r = setFarm(offLeague, playerId, !p.farm);
+    if (!r.error) set({ offLeague: r.league });
+    return r.error;
+  },
 }));

@@ -5,7 +5,7 @@ import { Logo } from '../components/Logo';
 import { Button, GradeBadge, Panel } from '../components/ui';
 
 export function ResultsScreen() {
-  const { league, postDraftLeague, draft, openPlayer, newGame, reset, seed } = useGame();
+  const { league, postDraftLeague, draft, openPlayer, newGame, reset, seed, startOffseason } = useGame();
   if (!league || !postDraftLeague || !draft?.grades) return null;
   const g = draft.grades;
   const me = league.teams.find((t) => t.id === EXPANSION_TEAM_ID);
@@ -190,13 +190,18 @@ export function ResultsScreen() {
       <Panel title="Wie geht es weiter?">
         <div className="flex flex-wrap items-center gap-3 p-4">
           <p className="flex-1 text-sm text-slate-400">
-            Offseason (Entry Draft, Free Agency, Trades, Aufstellung), Saison und Playoffs folgen in den nächsten Meilensteinen. Probiere denselben Seed mit anderer Strategie –
-            gleicher Seed und gleiche Entscheidungen führen zum identischen Ergebnis.
+            Weiter geht es mit der Offseason: Draft-Lotterie und Entry Draft, Free Agency, Trades und die erste Aufstellung. Oder probiere denselben Seed mit
+            anderer Strategie – gleicher Seed und gleiche Entscheidungen führen zum identischen Ergebnis.
           </p>
           <Button variant="ghost" onClick={() => newGame(seed, league.config.rules, league.config.difficulty)}>
             Gleicher Seed, neu starten
           </Button>
-          <Button onClick={reset}>Neue Liga</Button>
+          <Button variant="ghost" onClick={reset}>
+            Neue Liga
+          </Button>
+          <Button className="animate-glow" onClick={startOffseason}>
+            Weiter zur Offseason →
+          </Button>
         </div>
       </Panel>
     </div>

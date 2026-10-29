@@ -16,3 +16,8 @@ export * from './expansion/analyst';
 export * from './expansion/draft';
 export * from './expansion/negotiation';
 export * from './expansion/sidedeals';
+export * from './offseason/entrydraft';
+export * from './offseason/freeagency';
+export * from './offseason/trade';
+export * from './offseason/lineup';
+export * from './offseason/offseason';

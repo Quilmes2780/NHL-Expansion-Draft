@@ -1,6 +1,6 @@
 # PLAN – "Team 33 – NHL Expansion Draft GM"
 
-Status: **M1–M4 abgeschlossen** (je ein Commit). Als Nächstes: M5 Offseason.
+Status: **M1–M5 abgeschlossen** (je ein Commit). Als Nächstes: M6 Spiel- und Saisonsimulation.
 
 Abweichungen/Ergänzungen gegenüber dem Plan:
 - Kein ESLint; die Engine-Regeln (keine UI-Imports, kein `Math.random`/`Date.now`/DOM) prüft ein Architekturtest.
@@ -10,6 +10,9 @@ Abweichungen/Ergänzungen gegenüber dem Plan:
 - M4: Verhandlungen und Side Deals bilden eine gemeinsame Phase „Verhandlungen“ zwischen Reveal und Draft Board;
   bis zur Abgabe kann man frei zwischen Reveal, Verhandlungen und Board wechseln. Die Rollenversprechen werden
   gespeichert und sollen in M6 (Moral) wirken.
+- M5: Payroll zählt jetzt One-Way-Verträge im Farmteam (kein „Vergraben“ von Gehalt). Nach dem Expansion Draft
+  wird der NHL-Kader positionsausgewogen gewählt (2 G, 8 D, 13 F). Die Offseason ist eine Phase mit vier Tabs;
+  die Trade-Logik wird in M6 bis zur Deadline wiederverwendet. KI-initiierte Trade-Angebote sind noch nicht drin.
 - Generator: Cap Hits beim Payroll-Fitting auf max. 2× Marktwert begrenzt; fehlt dann Payroll bis zum Floor,
   verlängern Teams einige ihrer pending FAs.
 

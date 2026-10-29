@@ -2,6 +2,7 @@
 
 import { EXPANSION_TEAM_ID } from '../franchise';
 import type { League, Player } from '../model';
+import { pickActiveRoster } from '../model';
 import type { AnalystComment } from './analyst';
 import { revealComments } from './analyst';
 import type { Negotiation, Offer, Signing } from './negotiation';
@@ -257,10 +258,8 @@ export function submitExpansionDraft(league: League, s: ExpansionDraftState): Su
   const picked = Object.values(s.selection).map((id) => eff.players[id] as Player);
   const origins: Record<string, string> = {};
   for (const [teamId, id] of Object.entries(s.selection)) origins[id] = teamId;
-  // Best 23 form the active roster, the rest start in the farm team.
-  const active = new Set(
-    [...picked].sort((a, b) => b.ovr - a.ovr || a.id.localeCompare(b.id)).slice(0, league.config.activeRosterSize).map((p) => p.id),
-  );
+  // A balanced NHL roster of 23, the rest start in the farm team.
+  const active = pickActiveRoster(picked, league.config.activeRosterSize);
   for (const p of picked) players[p.id] = { ...p, teamId: EXPANSION_TEAM_ID, farm: !active.has(p.id) };
   let picks = eff.picks;
   for (const d of accepted) {

@@ -180,11 +180,42 @@ export function teamById(league: League, teamId: string): Team {
   return t;
 }
 
-/** Sum of next-season cap hits of all players under contract (active + farm one-way). */
+/** Does this contract count against the cap? Farm players only count on one-way deals (no burying). */
+export function countsAgainstCap(p: Player): boolean {
+  const c = p.contract;
+  if (!c || c.yearsLeft < 1) return false;
+  return !p.farm || (!c.twoWay && !c.elc);
+}
+
+/** Sum of next-season cap hits (active roster + one-way contracts in the farm team). */
 export function teamPayroll(league: League, teamId: string): number {
   let sum = 0;
-  for (const p of playersOfTeam(league, teamId)) {
-    if (p.contract && p.contract.yearsLeft >= 1 && !p.farm) sum += p.contract.capHit;
-  }
+  for (const p of playersOfTeam(league, teamId)) if (countsAgainstCap(p)) sum += (p.contract as Contract).capHit;
   return sum;
+}
+
+/**
+ * Choose the NHL roster from a group of players: the best 2 G, 8 D and 13 F (as far as available),
+ * then the best remaining players until `size` is reached. Returns the chosen ids.
+ */
+export function pickActiveRoster(players: Player[], size = 23): Set<string> {
+  const byOvr = [...players].sort((a, b) => b.ovr - a.ovr || a.id.localeCompare(b.id));
+  const chosen = new Set<string>();
+  const quota: Record<PositionGroup, number> = { G: 2, D: 8, F: 13 };
+  for (const g of ['G', 'D', 'F'] as const)
+    byOvr.filter((p) => groupOf(p.position) === g).slice(0, quota[g]).forEach((p) => chosen.add(p.id));
+  for (const p of byOvr) {
+    if (chosen.size >= size) break;
+    chosen.add(p.id);
+  }
+  return chosen;
+}
+
+export function activePlayers(league: League, teamId: string): Player[] {
+  return playersOfTeam(league, teamId).filter((p) => !p.farm);
+}
+
+/** Players with a contract for the coming season (the 50-contract limit). */
+export function contractCount(league: League, teamId: string): number {
+  return playersOfTeam(league, teamId).filter((p) => p.contract && p.contract.yearsLeft >= 1).length;
 }

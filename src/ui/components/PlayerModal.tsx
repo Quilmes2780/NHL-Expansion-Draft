@@ -22,8 +22,8 @@ import { Logo } from './Logo';
 import { Badge, Button, RangeBar, ScoutDots, Tip } from './ui';
 
 export function PlayerModal() {
-  const { modalPlayerId, openPlayer, league, postDraftLeague, draft, scout, toggleWish, select } = useGame();
-  const source = postDraftLeague ?? (league && draft ? effectiveLeague(league, draft) : league);
+  const { modalPlayerId, openPlayer, league, postDraftLeague, offLeague, draft, scout, toggleWish, select } = useGame();
+  const source = offLeague ?? postDraftLeague ?? (league && draft ? effectiveLeague(league, draft) : league);
   const p: Player | undefined = modalPlayerId ? source?.players[modalPlayerId] : undefined;
   const view = useScoutView(p);
 
