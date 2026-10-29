@@ -6,7 +6,7 @@
 
 import { EXPANSION_TEAM_ID, distanceKm } from '../franchise';
 import type { League, Player, Team } from '../model';
-import { activePlayers, fullName, groupOf, pickActiveRoster, playersOfTeam, teamPayroll } from '../model';
+import { activePlayers, fullName, groupOf, isInauguralSeason, pickActiveRoster, playersOfTeam, teamPayroll } from '../model';
 import { rngFor } from '../rng';
 import type { Lineup } from '../offseason/lineup';
 import { MAX_ACTIVE, autoLineup, validateLineup } from '../offseason/lineup';
@@ -113,7 +113,11 @@ export function startSeason(
   options: Partial<SeasonOptions> = {},
   seasonSeed = `${league.seed}|season${league.config.seasonStartYear}`,
   promises: Record<string, Role> = {},
+  /** Fan/owner state at the end of the previous season (later seasons only). */
+  previousMeta: FranchiseMeta | null = null,
 ): { league: League; state: SeasonState } {
+  const inaugural = isInauguralSeason(league);
+  const me = league.teams.find((t) => t.isExpansion);
   // AI teams: balanced NHL rosters from everyone under contract.
   const players = { ...league.players };
   for (const t of league.teams) {
@@ -128,7 +132,7 @@ export function startSeason(
   const chemistry: Record<string, number> = {};
   for (const t of lg.teams) {
     lineups[t.id] = t.isExpansion ? userLineup : autoLineup(lg, t.id);
-    chemistry[t.id] = t.isExpansion ? CHEM_START_EXPANSION : CHEM_START;
+    chemistry[t.id] = t.isExpansion && inaugural ? CHEM_START_EXPANSION : CHEM_START;
   }
   const teamStats: Record<string, TeamStats> = {};
   for (const t of lg.teams) teamStats[t.id] = { shotsFor: 0, shotsAgainst: 0, ppOpp: 0, ppGoals: 0, pkOpp: 0, pkGa: 0 };
@@ -149,20 +153,22 @@ export function startSeason(
       chemistry,
       lastGame: {},
       emergency: [],
-      options: { misfitsBonus: true, goalieMode: 'auto', ...options },
-      log: [{ day: 0, teamId: null, kind: 'info', text: `Saisonstart am ${dayLabel(0)} – ${sched.games.length} Spiele, Trade Deadline am ${dayLabel(sched.deadlineDay)}.` }],
+      options: { misfitsBonus: inaugural, goalieMode: 'auto', ...options },
+      log: [{ day: 0, teamId: null, kind: 'info', text: `Saisonstart am ${dayLabel(0, league.config.seasonStartYear)} – ${sched.games.length} Spiele, Trade Deadline am ${dayLabel(sched.deadlineDay, league.config.seasonStartYear)}.` }],
       done: false,
       phase: 'regular',
       news: [
         {
           day: 0,
-          headline: `Der große Tag: Die ${lg.teams.find((t) => t.isExpansion)?.city ?? ''} ${lg.teams.find((t) => t.isExpansion)?.name ?? ''} starten in ihre erste Saison`,
-          body: `Die Liga zählt jetzt 33 Teams. Trade Deadline ist am ${dayLabel(sched.deadlineDay)}.`,
+          headline: inaugural
+            ? `Der große Tag: Die ${me?.city ?? ''} ${me?.name ?? ''} starten in ihre erste Saison`
+            : `Saison ${league.config.seasonLabel}: Die ${me?.city ?? ''} ${me?.name ?? ''} greifen wieder an`,
+          body: `${inaugural ? `Die Liga zählt jetzt ${lg.teams.length} Teams. ` : ''}Trade Deadline ist am ${dayLabel(sched.deadlineDay, league.config.seasonStartYear)}.`,
           tone: 'neutral',
           teamId: EXPANSION_TEAM_ID,
         },
       ],
-      meta: initMeta(lg, promises),
+      meta: initMeta(lg, promises, inaugural ? null : previousMeta),
     },
   };
 }

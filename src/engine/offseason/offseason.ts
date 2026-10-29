@@ -7,6 +7,7 @@ import { isDraftDone, simToUserPick, startEntryDraft } from './entrydraft';
 import type { FreeAgencyState } from './freeagency';
 import { startFreeAgency } from './freeagency';
 import type { Lineup } from './lineup';
+import type { RolloverReport } from './rollover';
 import { autoLineup } from './lineup';
 import type { TradeEvaluation, TradeProposal } from './trade';
 import { describeSide, evaluateTrade, executeTrade } from './trade';
@@ -24,17 +25,19 @@ export interface OffseasonState {
   fa: FreeAgencyState | null;
   trades: TradeRecord[];
   lineup: Lineup;
+  /** What happened over the summer (later seasons only): retirements, development. */
+  report?: RolloverReport | null;
 }
 
 const DRAFT_SCOUTING = { leicht: 30, normal: 20, schwer: 12 } as const;
 
-export function startOffseason(league: League): { league: League; state: OffseasonState } {
+export function startOffseason(league: League, report: RolloverReport | null = null): { league: League; state: OffseasonState } {
   const started = startEntryDraft(league, DRAFT_SCOUTING[league.config.difficulty]);
   // The AI picks until the expansion team is on the clock.
   const r = simToUserPick(started.league, started.state);
   return {
     league: r.league,
-    state: { stage: 'draft', draft: r.state, fa: null, trades: [], lineup: autoLineup(r.league, EXPANSION_TEAM_ID) },
+    state: { stage: 'draft', draft: r.state, fa: null, trades: [], lineup: autoLineup(r.league, EXPANSION_TEAM_ID), report },
   };
 }
 

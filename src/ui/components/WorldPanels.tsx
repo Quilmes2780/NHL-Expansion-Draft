@@ -1,5 +1,6 @@
 import type { FranchiseMeta, League, NewsItem } from '../../engine';
 import { averageAttendance, cityById, dayLabel } from '../../engine';
+import { useGame } from '../../store/game';
 import { MANDATES } from '../text';
 import { Panel, Tip } from './ui';
 
@@ -66,12 +67,13 @@ export function OwnerFansPanel({ league, meta }: { league: League; meta: Franchi
 }
 
 export function NewsFeed({ news, title = 'Newsfeed', limit = 30, className = '' }: { news: NewsItem[]; title?: string; limit?: number; className?: string }) {
+  const year = useGame((s) => s.offLeague?.config.seasonStartYear);
   return (
     <Panel title={title} className={className}>
       <ul className="max-h-96 space-y-2 overflow-auto p-4">
         {[...news].reverse().slice(0, limit).map((n, i) => (
           <li key={i} className={`rounded-lg border-l-2 bg-coal-850 px-3 py-2 ${n.tone === 'good' ? 'border-emerald-400' : n.tone === 'bad' ? 'border-rose-400' : 'border-coal-500'}`}>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">{dayLabel(n.day)}</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">{dayLabel(n.day, year)}</div>
             <div className="text-sm font-semibold text-slate-100">{n.headline}</div>
             {n.body && <div className="text-xs text-slate-400">{n.body}</div>}
           </li>

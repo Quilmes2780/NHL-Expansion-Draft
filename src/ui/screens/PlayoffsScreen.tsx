@@ -136,7 +136,7 @@ function RoundResults({
                   if (!r) return null;
                   const winner = r.homeGoals > r.awayGoals ? r.home : r.away;
                   const ot = r.decision !== 'REG';
-                  const title = `${dayLabel(r.day)} · ${abbr(r.away)} @ ${abbr(r.home)} ${r.awayGoals}:${r.homeGoals}${ot ? ' n. V.' : ''}`;
+                  const title = `${dayLabel(r.day, offLeague.config.seasonStartYear)} · ${abbr(r.away)} @ ${abbr(r.home)} ${r.awayGoals}:${r.homeGoals}${ot ? ' n. V.' : ''}`;
                   const label = (
                     <>
                       <span className="text-slate-500">G{i + 1}</span> <span className="font-semibold text-white">{abbr(winner)}</span>{' '}
@@ -191,7 +191,7 @@ export function PlayoffsScreen() {
           <div className="text-xs uppercase tracking-[0.2em] text-amber-300">Playoffs {offLeague.config.seasonLabel}</div>
           <h1 className="text-3xl font-black text-white">{champ ? `${champ.city} ${champ.name} sind Meister!` : ROUND_NAMES[po.round]}</h1>
           <p className="text-sm text-slate-400">
-            {dayLabel(po.season.day)} ·{' '}
+            {dayLabel(po.season.day, offLeague.config.seasonStartYear)} ·{' '}
             {!mySeries ? 'Dein Team hat die Playoffs verpasst.' : out ? 'Dein Team ist ausgeschieden.' : `Dein Team: ${ROUND_NAMES[mySeries.round]}`}
           </p>
         </div>

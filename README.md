@@ -89,8 +89,17 @@ Doppelklick (`file://`), ohne Server.
     der Saison bessere Team, Overtime als 20-Minuten-Sudden-Death (kein Shootout). Bracket-Ansicht, Playoff-Scorer.
 12. **Saisonbilanz:** Owner-Note (A–F) mit Urteil, Bilanz und Playoff-Ergebnis, Fans/Zuschauer, fiktive Trophäen
     (Northern Star Trophy, Golden Stick, Sniper Award, Iron Mask Award, Blue Line Trophy, Rising Star Award,
-    Gentleman Cup), Expansion-Draft-Rückblick (beste/schlechteste Picks), 18 Achievements, Neustart mit gleichem
-    oder neuem Seed.
+    Gentleman Cup), Expansion-Draft-Rückblick (beste/schlechteste Picks), 18 Achievements, Franchise-Historie,
+    Neustart mit gleichem oder neuem Seed – oder weiter in die nächste Saison.
+13. **Folgesaisons:** Ohne Expansion Draft geht es direkt in die nächste Offseason. Beim Saisonwechsel
+    (`engine/offseason/rollover.ts`) werden Statistiken übernommen, Spieler altern und entwickeln sich (Junge wachsen
+    Richtung Potenzial, ab ca. 30 geht es bergab, Goalies zwei Jahre später), Verträge verlieren ein Jahr,
+    unsignierte Draftpicks bekommen mit 20 einen Einstiegsvertrag, Draftpicks rollen ein Jahr weiter. Karriereende:
+    je älter, desto wahrscheinlicher (ab 31, Goalies ab 33) – vor allem bei auslaufendem Vertrag, unter Vertrag nur
+    selten (ab 36); Stars spielen länger, Randspieler hören früher auf, vertragslose Free Agents ab 28 verlassen die
+    Liga eher. Die Lotterie richtet sich nun nach der eigenen Bilanz, Fans und Owner-Zufriedenheit werden
+    fortgeschrieben, Misfits-Bonus und Chemie-Malus gelten nur in der ersten Saison. Ein Sommerbericht zeigt
+    Karriereenden und die Entwicklung des eigenen Kaders.
 
 ### Spiel-Engine
 

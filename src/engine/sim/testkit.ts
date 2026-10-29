@@ -29,7 +29,12 @@ export function autoPreseason(seed: string): { league: League; lineup: Lineup } 
   for (const [t, id] of Object.entries(mockDraft(founded, s.protections))) s = selectPlayer(founded, s, t, id);
   const res = submitExpansionDraft(founded, s);
   if (!res.ok) throw new Error('auto draft failed');
-  const off = startOffseason(res.league);
+  return autoOffseason(res.league);
+}
+
+/** Entry draft, free agency and roster with automatic decisions (any offseason, also after a rollover). */
+export function autoOffseason(league: League): { league: League; lineup: Lineup } {
+  const off = startOffseason(league);
   const d = simEntryDraft(off.league, off.state.draft);
   const fa = finishEntryDraft(d.league, { ...off.state, draft: d.state });
   let lg = fa.league;

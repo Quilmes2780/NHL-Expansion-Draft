@@ -6,6 +6,7 @@ import {
   computeAwards,
   draftReview,
   evaluateAchievements,
+  seasonLabelFor,
   seasonVerdict,
 } from '../../engine';
 import { useGame } from '../../store/game';
@@ -14,7 +15,7 @@ import { Logo } from '../components/Logo';
 import { Button, GradeBadge, Panel } from '../components/ui';
 
 export function SummaryScreen() {
-  const { offLeague, season, playoffs, draft, off, openPlayer, newGame, reset, seed } = useGame();
+  const { offLeague, season, playoffs, draft, off, openPlayer, newGame, reset, seed, seasonNo, history, nextSeason } = useGame();
   const data = useMemo(() => {
     if (!offLeague || !season) return null;
     return {
@@ -142,15 +143,50 @@ export function SummaryScreen() {
         </div>
       </Panel>
 
+      {history.length > 0 && (
+        <Panel title="Franchise-Historie">
+          <table className="w-full text-sm tabular">
+            <thead className="bg-coal-850 text-left text-[11px] uppercase tracking-wider text-slate-400">
+              <tr>
+                {['Saison', 'Bilanz', 'Punkte', 'Liga-Platz', 'Playoffs', 'Owner-Note', 'Meister'].map((h) => (
+                  <th key={h} className="px-3 py-2">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-coal-800">
+              {[...history, { label: offLeague.config.seasonLabel, record: v.record, points: v.points, rank: v.rank, playoffResult: v.playoffResult, grade: v.grade, champion: playoffs?.champion ?? null }].map((h) => (
+                <tr key={h.label} className={h.label === offLeague.config.seasonLabel ? 'bg-ice-500/10' : ''}>
+                  <td className="px-3 py-1 font-mono">{h.label}</td>
+                  <td className="px-3 font-mono">{h.record}</td>
+                  <td className="px-3 font-mono">{h.points}</td>
+                  <td className="px-3 font-mono">{h.rank}.</td>
+                  <td className="px-3">{h.playoffResult}</td>
+                  <td className="px-3 font-mono">{h.grade}</td>
+                  <td className="px-3 text-slate-400">{team(h.champion)?.city ?? '–'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+      )}
+
       <Panel title="Wie geht es weiter?">
         <div className="flex flex-wrap items-center gap-3 p-4">
           <p className="flex-1 text-sm text-slate-400">
-            Die erste Saison ist Geschichte. Starte neu – mit demselben Seed (gleiche Liga, gleiche Startbedingungen) oder mit einer ganz neuen Liga.
+            {seasonNo === 1 ? 'Die erste Saison ist Geschichte.' : `Saison ${seasonNo} ist Geschichte.`} Weiter geht es mit der nächsten Offseason: Karriereenden, Spielerentwicklung,
+            Draft-Lotterie, Entry Draft und Free Agency. Oder starte neu – mit demselben Seed oder einer ganz neuen Liga.
           </p>
-          <Button variant="ghost" onClick={() => newGame(seed, offLeague.config.rules, offLeague.config.difficulty)}>
+          <Button variant="ghost" onClick={() => confirm('Wirklich neu starten? Der aktuelle Spielstand wird überschrieben (Autosave).') && newGame(seed, offLeague.config.rules, offLeague.config.difficulty)}>
             Neustart mit gleichem Seed
           </Button>
-          <Button onClick={reset}>Neue Liga</Button>
+          <Button variant="ghost" onClick={reset}>
+            Neue Liga
+          </Button>
+          <Button className="animate-glow" onClick={nextSeason}>
+            Nächste Saison ({seasonLabelFor(offLeague.config.seasonStartYear + 1)}) →
+          </Button>
         </div>
       </Panel>
     </div>

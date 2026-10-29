@@ -3,7 +3,7 @@ import { PHASES, phaseIndex, useGame } from '../../store/game';
 import { Logo } from './Logo';
 
 export function Header() {
-  const { phase, maxPhase, goto, league, seed, ruleSetId, reset, setMenuOpen } = useGame();
+  const { phase, maxPhase, goto, league, offLeague, seasonNo, seed, ruleSetId, reset, setMenuOpen } = useGame();
   const team = league?.teams.find((t) => t.id === EXPANSION_TEAM_ID);
   return (
     <header className="sticky top-0 z-40 border-b border-coal-700 bg-coal-950/85 backdrop-blur">
@@ -21,14 +21,18 @@ export function Header() {
           )}
           <span className="hidden leading-tight md:block">
             <span className="block max-w-44 truncate text-sm font-bold text-slate-100">{team ? `${team.city} ${team.name}` : 'Team 33'}</span>
-            <span className="block text-[10px] uppercase tracking-widest text-slate-400">Expansion Draft GM</span>
+            <span className="block text-[10px] uppercase tracking-widest text-slate-400">
+              {seasonNo > 1 && offLeague ? `Saison ${seasonNo} · ${offLeague.config.seasonLabel}` : 'Expansion Draft GM'}
+            </span>
           </span>
         </button>
         <nav aria-label="Phasen" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1 [scrollbar-width:none]">
           {PHASES.map((p, i) => {
-            const reachable = phaseIndex(p.id) <= phaseIndex(maxPhase);
+            // After the first season the expansion phases are history: shown as done, no longer reachable.
+            const expansionPast = seasonNo > 1 && phaseIndex(p.id) < phaseIndex('offseason');
+            const reachable = phaseIndex(p.id) <= phaseIndex(maxPhase) && !expansionPast;
             const active = p.id === phase;
-            const done = phaseIndex(p.id) < phaseIndex(maxPhase);
+            const done = phaseIndex(p.id) < phaseIndex(maxPhase) || expansionPast;
             return (
               <div key={p.id} className="flex shrink-0 items-center">
                 {i > 0 && <span className={`mx-0.5 h-px w-2 lg:w-3 ${done || active ? 'bg-ice-400/60' : 'bg-coal-600'}`} />}

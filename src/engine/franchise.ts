@@ -131,7 +131,7 @@ export function createFranchise(league: League, opts: FranchiseOptions): { leagu
       ...league,
       teams,
       divisions: realignment.divisions,
-      franchise: { teamId: team.id, cityId: city.id, mandate: opts.mandate },
+      franchise: { teamId: team.id, cityId: city.id, mandate: opts.mandate, foundedYear: league.config.seasonStartYear },
     },
     realignment,
   };

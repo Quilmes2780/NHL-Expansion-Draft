@@ -50,7 +50,7 @@ export function SeasonScreen() {
           <Logo spec={me.logo} size={52} />
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-ice-300">Saison {offLeague.config.seasonLabel}</div>
-            <h1 className="text-3xl font-black text-white">{season.done ? 'Reguläre Saison beendet' : dayLabel(season.day)}</h1>
+            <h1 className="text-3xl font-black text-white">{season.done ? 'Reguläre Saison beendet' : dayLabel(season.day, offLeague.config.seasonStartYear)}</h1>
             <p className="text-sm text-slate-400">
               {row ? `${row.w}-${row.l}-${row.otl} · ${row.pts} Punkte · Platz ${divRank} in der ${me.division} Division` : ''}
             </p>
@@ -108,11 +108,11 @@ export function SeasonScreen() {
       {tab === 'trades' &&
         (deadlinePassed ? (
           <Panel>
-            <p className="p-8 text-center text-slate-400">Die Trade Deadline ({dayLabel(season.deadlineDay)}) ist vorbei. Trades sind erst nach der Saison wieder möglich.</p>
+            <p className="p-8 text-center text-slate-400">Die Trade Deadline ({dayLabel(season.deadlineDay, offLeague.config.seasonStartYear)}) ist vorbei. Trades sind erst nach der Saison wieder möglich.</p>
           </Panel>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm text-amber-200">Trade Deadline: {dayLabel(season.deadlineDay)}</p>
+            <p className="text-sm text-amber-200">Trade Deadline: {dayLabel(season.deadlineDay, offLeague.config.seasonStartYear)}</p>
             <TradesTab />
           </div>
         ))}
@@ -179,7 +179,7 @@ function Overview({ onOpen, onGoalieMode }: { onOpen: (b: BoxScore[]) => void; o
             const opp = team(home ? g.away : g.home);
             return (
               <li key={g.id} className="flex items-center gap-2">
-                <span className="w-32 text-xs text-slate-500">{dayLabel(g.day)}</span>
+                <span className="w-32 text-xs text-slate-500">{dayLabel(g.day, offLeague.config.seasonStartYear)}</span>
                 <span className="w-6 text-xs text-slate-400">{home ? 'vs' : '@'}</span>
                 {opp && <Logo spec={opp.logo} size={18} />}
                 <span className="text-slate-200">{opp?.city}</span>
@@ -268,7 +268,7 @@ function Overview({ onOpen, onGoalieMode }: { onOpen: (b: BoxScore[]) => void; o
         <ul className="max-h-72 space-y-1 overflow-auto p-4 text-xs">
           {[...season.log].reverse().slice(0, 40).map((e, i) => (
             <li key={i} className={e.kind === 'injury' ? 'text-rose-300' : e.kind === 'return' ? 'text-emerald-300' : e.kind === 'trade' || e.kind === 'waiver' ? 'text-amber-200' : 'text-slate-400'}>
-              <span className="mr-2 font-mono text-slate-600">{dayLabel(e.day)}</span>
+              <span className="mr-2 font-mono text-slate-600">{dayLabel(e.day, offLeague.config.seasonStartYear)}</span>
               {e.text}
             </li>
           ))}
@@ -309,7 +309,7 @@ function ScheduleTab({ onOpen }: { onOpen: (b: BoxScore[]) => void }) {
                 <tr key={g.id} className={g.day === season.day ? 'bg-ice-500/10' : ''}>
                   <td className="px-3 py-1 font-mono text-slate-500">{i + 1}</td>
                   <td className="px-3 text-xs text-slate-300">
-                    {dayLabel(g.day)} {b2b && <span className="text-amber-300" title="Back-to-Back">B2B</span>}
+                    {dayLabel(g.day, offLeague.config.seasonStartYear)} {b2b && <span className="text-amber-300" title="Back-to-Back">B2B</span>}
                     {g.day === season.deadlineDay && <span className="ml-1 text-violet-300">Deadline</span>}
                   </td>
                   <td className="px-3">

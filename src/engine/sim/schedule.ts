@@ -27,9 +27,16 @@ const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 
 
 const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 const monthLen = (y: number, m: number) => [31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1] as number;
-const WEEKDAYS = ['Fr', 'Sa', 'So', 'Mo', 'Di', 'Mi', 'Do']; // 8 Oct 2027 is a Friday
+const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
-/** Calendar date of a season day (day 0 = opening night), e.g. "Sa 9. Okt 2027". */
+/** Day of the week (0 = Sunday) without Date objects (Sakamoto's method). */
+function weekday(y: number, m: number, d: number): number {
+  const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+  const yy = m < 3 ? y - 1 : y;
+  return (yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) + (t[m - 1] as number) + d) % 7;
+}
+
+/** Calendar date of a season day (day 0 = opening night on 8 October), e.g. "Sa 9. Okt 2027". */
 export function dayLabel(day: number, startYear = START.year): string {
   let y = startYear;
   let m = START.month;
@@ -42,7 +49,7 @@ export function dayLabel(day: number, startYear = START.year): string {
       y++;
     }
   }
-  return `${WEEKDAYS[day % 7]} ${d}. ${MONTHS[m - 1]} ${y}`;
+  return `${WEEKDAYS[weekday(y, m, d)]} ${d}. ${MONTHS[m - 1]} ${y}`;
 }
 
 function pairKey(a: string, b: string): string {

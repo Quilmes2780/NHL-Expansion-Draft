@@ -6,6 +6,7 @@ import { EntryDraftTab } from './offseason/EntryDraftTab';
 import { FreeAgencyTab } from './offseason/FreeAgencyTab';
 import { LineupTab } from './offseason/LineupTab';
 import { TradesTab } from './offseason/TradesTab';
+import { SummerReport } from './offseason/SummerReport';
 
 type Tab = 'draft' | 'fa' | 'trades' | 'lineup';
 
@@ -31,7 +32,9 @@ export function OffseasonScreen() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-white">Offseason {cfg.seasonLabel}</h1>
-          <p className="mt-1 text-slate-400">Entry Draft, Free Agency, Trades und die erste Aufstellung deiner Franchise.</p>
+          <p className="mt-1 text-slate-400">
+            {off.report ? 'Entry Draft, Free Agency, Trades und die Aufstellung für die neue Saison.' : 'Entry Draft, Free Agency, Trades und die erste Aufstellung deiner Franchise.'}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <div className="w-64">
@@ -59,6 +62,8 @@ export function OffseasonScreen() {
           </div>
         </div>
       </div>
+
+      {off.report && <SummerReport report={off.report} />}
 
       <div className="flex flex-wrap gap-2">
         {tabs.map((t) => (

@@ -59,7 +59,7 @@ export function PlayerModal() {
           {team && <Logo spec={team.logo} size={64} />}
           <div className="min-w-0 flex-1">
             <div className="text-xs uppercase tracking-widest text-slate-300">
-              {team ? `${team.city} ${team.name}` : 'Free Agent'} · {POS_LABEL[p.position]}
+              {team ? `${team.city} ${team.name}` : p.retired ? 'Karriere beendet' : 'Free Agent'} · {POS_LABEL[p.position]}
             </div>
             <h2 className="truncate text-2xl font-black text-white">{fullName(p)}</h2>
             <div className="mt-1 flex flex-wrap gap-1.5 text-xs text-slate-300">

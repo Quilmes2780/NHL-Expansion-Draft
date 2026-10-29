@@ -2,7 +2,7 @@
 
 import { EXPANSION_TEAM_ID } from '../franchise';
 import type { League, Player } from '../model';
-import { fullName, groupOf, playersOfTeam } from '../model';
+import { fullName, groupOf, isInauguralSeason, playersOfTeam } from '../model';
 import type { ExpansionDraftState } from '../expansion/draft';
 import type { Grade } from '../expansion/selection';
 import type { OffseasonState } from '../offseason/offseason';
@@ -109,6 +109,22 @@ export interface SeasonVerdict {
   fill: number;
   grade: Grade;
   verdict: string;
+}
+
+/** One line of the franchise history. */
+export interface SeasonRecord {
+  label: string;
+  record: string;
+  points: number;
+  rank: number;
+  playoffResult: string;
+  grade: Grade;
+  champion: string | null;
+}
+
+export function seasonRecord(league: League, regular: SeasonState, po: PlayoffState | null): SeasonRecord {
+  const v = seasonVerdict(league, regular, po);
+  return { label: league.config.seasonLabel, record: v.record, points: v.points, rank: v.rank, playoffResult: v.playoffResult, grade: v.grade, champion: po?.champion ?? null };
 }
 
 export function seasonVerdict(league: League, regular: SeasonState, po: PlayoffState | null): SeasonVerdict {
@@ -225,7 +241,7 @@ export function evaluateAchievements(ctx: AchievementContext): string[] {
       got.add('playoffs');
       if (s.round > 0 || s.winner === EXPANSION_TEAM_ID) got.add('series');
       if (s.round === 3) got.add('final');
-      if (po.champion === EXPANSION_TEAM_ID) got.add('champion');
+      if (po.champion === EXPANSION_TEAM_ID && isInauguralSeason(league)) got.add('champion');
       const pay = playersOfTeam(league, EXPANSION_TEAM_ID).reduce((a, p) => a + (!p.farm && p.contract && p.contract.yearsLeft >= 1 ? p.contract.capHit : 0), 0);
       if (pay < league.config.salaryCap * 0.85) got.add('budget-playoffs');
     }

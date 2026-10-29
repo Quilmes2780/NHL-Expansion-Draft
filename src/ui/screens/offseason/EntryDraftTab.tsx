@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EXPANSION_TEAM_ID, availableProspects, currentSlot, formatRange, fullName, isDraftDone, scoutView } from '../../../engine';
+import { EXPANSION_TEAM_ID, availableProspects, currentSlot, formatRange, fullName, isDraftDone, isInauguralSeason, scoutView } from '../../../engine';
 import { useGame } from '../../../store/game';
 import { POS_LABEL, RULE_TIPS, nationLabel } from '../../text';
 import { Logo } from '../../components/Logo';
@@ -26,7 +26,10 @@ export function EntryDraftTab({ onDone }: { onDone: () => void }) {
         <Panel
           title={
             <span className="flex items-center">
-              Draft-Lotterie <Tip text="Das Expansionsteam erhält die Lotteriechancen des Teams mit der drittschlechtesten Bilanz. Gezogen werden die Picks 1 und 2; ein Team kann maximal 10 Plätze nach vorn springen." />
+              Draft-Lotterie{' '}
+              <Tip
+                text={`${isInauguralSeason(offLeague) ? 'Das Expansionsteam erhält die Lotteriechancen des Teams mit der drittschlechtesten Bilanz.' : 'Die Lotteriechancen richten sich nach den Punkten der Vorsaison – auch für dein Team.'} Gezogen werden die Picks 1 und 2; ein Team kann maximal 10 Plätze nach vorn springen.`}
+              />
             </span>
           }
         >

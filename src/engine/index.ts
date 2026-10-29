@@ -21,6 +21,7 @@ export * from './offseason/freeagency';
 export * from './offseason/trade';
 export * from './offseason/lineup';
 export * from './offseason/offseason';
+export * from './offseason/rollover';
 export * from './sim/schedule';
 export * from './sim/game';
 export * from './sim/season';

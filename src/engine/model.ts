@@ -85,6 +85,8 @@ export interface Player {
   teamId: string | null;
   /** true = farm team / prospect pool, false = active roster. */
   farm: boolean;
+  /** Career over (kept for history and reviews, belongs to no team). */
+  retired?: boolean;
 }
 
 export interface DraftPick {
@@ -145,7 +147,13 @@ export interface Franchise {
   teamId: string;
   cityId: string;
   mandate: Mandate;
+  /** Start year of the inaugural season (expansion rules apply only then). */
+  foundedYear?: number;
 }
+
+/** Is the league in the expansion team's first season? */
+export const isInauguralSeason = (league: League): boolean =>
+  !league.franchise?.foundedYear || league.franchise.foundedYear === league.config.seasonStartYear;
 
 export interface Division {
   name: string;

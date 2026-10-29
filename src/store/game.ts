@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { SaveFile, Settings, SlotId } from './persistence';
 import { SAVE_FORMAT, SAVE_VERSION, loadSettings, parseSaveFile, readSave, storeSettings, writeSave } from './persistence';
 import type {
+  FranchiseMeta,
+  SeasonRecord,
   PlayoffState,
   BoxScore,
   DayResult,
@@ -22,6 +24,8 @@ import type {
 } from '../engine';
 import {
   EXPANSION_TEAM_ID,
+  advanceSeason,
+  seasonRecord,
   simPlayoffDay,
   startPlayoffs as startPlayoffsEngine,
   demoteWithWaivers,
@@ -145,6 +149,14 @@ interface GameStore {
   clearBoxes: () => void;
 
   playoffs: PlayoffState | null;
+  /** 1 = inaugural season; later seasons skip the expansion phases. */
+  seasonNo: number;
+  /** Results of the finished seasons (oldest first). */
+  history: SeasonRecord[];
+  /** Fans/owner at the end of the last season, carried into the next one. */
+  prevMeta: FranchiseMeta | null;
+  /** After the season summary: roll over into the next offseason. */
+  nextSeason: () => void;
   startPlayoffs: () => void;
   simulatePlayoffs: (target: PlayoffSimTarget) => Promise<void>;
   finishSeason: () => void;
@@ -193,6 +205,9 @@ const SNAPSHOT_KEYS = [
   'off',
   'season',
   'playoffs',
+  'seasonNo',
+  'history',
+  'prevMeta',
   'tickerEnabled',
 ] as const;
 type Snapshot = Pick<GameStore, (typeof SNAPSHOT_KEYS)[number]>;
@@ -268,6 +283,9 @@ export const useGame = create<GameStore>((set, get) => ({
       playoffs: null,
       lastBoxes: [],
       simNotice: [],
+      seasonNo: 1,
+      history: [],
+      prevMeta: null,
       phase: 'founding',
       maxPhase: 'founding',
     });
@@ -283,7 +301,8 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   goto: (phase) => {
-    const { maxPhase } = get();
+    const { maxPhase, seasonNo } = get();
+    if (seasonNo > 1 && phaseIndex(phase) < phaseIndex('offseason')) return;
     if (phaseIndex(phase) <= phaseIndex(maxPhase)) set({ phase });
     else if (OPEN_PHASES.includes(phase) && OPEN_PHASES.includes(maxPhase)) set({ phase, maxPhase: phase });
   },
@@ -366,6 +385,9 @@ export const useGame = create<GameStore>((set, get) => ({
       playoffs: null,
       lastBoxes: [],
       simNotice: [],
+      seasonNo: 1,
+      history: [],
+      prevMeta: null,
     }),
 
   offLeague: null,
@@ -504,8 +526,9 @@ export const useGame = create<GameStore>((set, get) => ({
     const issues = seasonReadiness(offLeague, EXPANSION_TEAM_ID, off.lineup).map((i) => i.message);
     if (issues.length) return issues;
     // Roles promised in the negotiation window are tracked for player morale.
-    const promises = Object.fromEntries(Object.values(get().draft?.signings ?? {}).map((sg) => [sg.playerId, sg.role]));
-    const r = startSeasonEngine(offLeague, off.lineup, {}, undefined, promises);
+    const { seasonNo, prevMeta } = get();
+    const promises = seasonNo === 1 ? Object.fromEntries(Object.values(get().draft?.signings ?? {}).map((sg) => [sg.playerId, sg.role])) : {};
+    const r = startSeasonEngine(offLeague, off.lineup, {}, undefined, promises, prevMeta);
     set({ offLeague: r.league, season: r.state, phase: 'season', maxPhase: 'season', lastBoxes: [] });
     return [];
   },
@@ -556,6 +579,30 @@ export const useGame = create<GameStore>((set, get) => ({
   clearSimNotice: () => set({ simNotice: [] }),
 
   playoffs: null,
+  seasonNo: 1,
+  history: [],
+  prevMeta: null,
+
+  nextSeason: () => {
+    const { offLeague, season, playoffs, seasonNo, history } = get();
+    if (!offLeague || !season?.done || (playoffs && !playoffs.champion)) return;
+    const record = seasonRecord(offLeague, season, playoffs);
+    const roll = advanceSeason(offLeague, season, playoffs);
+    const r = startOffseason(roll.league, roll.report);
+    set({
+      offLeague: r.league,
+      off: r.state,
+      season: null,
+      playoffs: null,
+      prevMeta: (playoffs?.season ?? season).meta,
+      seasonNo: seasonNo + 1,
+      history: [...history, record],
+      phase: 'offseason',
+      maxPhase: 'offseason',
+      lastBoxes: [],
+      simNotice: [],
+    });
+  },
 
   startPlayoffs: () => {
     const { offLeague, season, playoffs } = get();
@@ -612,6 +659,9 @@ export const useGame = create<GameStore>((set, get) => ({
       playoffs: null,
       lastBoxes: [],
       simNotice: [],
+      seasonNo: 1,
+      history: [],
+      prevMeta: null,
       phase: 'founding',
       maxPhase: 'founding',
     });
@@ -649,7 +699,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!file) return error;
     const state = file.state as Snapshot;
     if (!state.league || !PHASES.some((p) => p.id === state.phase)) return 'Der Spielstand ist unvollständig.';
-    set({ ...state, violations: [], modalPlayerId: null, compare: [], lastBoxes: [], simNotice: [], simulating: false, menuOpen: false });
+    set({ ...state, seasonNo: state.seasonNo ?? 1, history: state.history ?? [], prevMeta: state.prevMeta ?? null, violations: [], modalPlayerId: null, compare: [], lastBoxes: [], simNotice: [], simulating: false, menuOpen: false });
     applyTeamColors(state.league);
     return null;
   },

@@ -74,7 +74,7 @@ export function startFreeAgency(league: League): { league: League; state: FreeAg
     }
     let payroll = teamPayroll(league, team.id);
     for (const p of pending) {
-      const rng = rngFor(league.seed, 'resign', p.id);
+      const rng = rngFor(league.seed, 'resign', league.config.seasonStartYear, p.id);
       const wantKeep = p.contract?.expiryStatus === 'RFA' ? 0.88 : p.ovr >= 74 ? 0.45 : 0.25;
       const salary = round25k(Math.max(cfg.minSalary, marketValue(p.ovr, p.age, p.position, cfg) * rng.range(0.9, 1.08)));
       if (p.farm && p.ovr < 62) {
@@ -93,6 +93,8 @@ export function startFreeAgency(league: League): { league: League; state: FreeAg
       }
     }
   }
+  // Free agents nobody signed last summer try again.
+  for (const p of Object.values(league.players)) if (!p.teamId && !p.retired && p.contract?.yearsLeft === 0 && !pool.includes(p.id)) pool.push(p.id);
   return {
     league: { ...league, players },
     state: { day: 1, done: false, pool: pool.sort(), userOffers: {}, ownRfas, log },
@@ -106,7 +108,7 @@ export function faUtility(league: League, p: Player, teamId: string, offer: Offe
   if (teamId === EXPANSION_TEAM_ID) team = cityFit(league, p);
   else {
     const t = league.teams.find((x) => x.id === teamId) as Team;
-    team = (t.personality === 'contender' ? 0.04 : t.personality === 'rebuild' ? -0.02 : 0) + rngFor(league.seed, 'fafit', p.id, teamId).normal(0, 0.02);
+    team = (t.personality === 'contender' ? 0.04 : t.personality === 'rebuild' ? -0.02 : 0) + rngFor(league.seed, 'fafit', league.config.seasonStartYear, p.id, teamId).normal(0, 0.02);
   }
   return Math.min(1.3, offer.salary / prof.ask) + yearsTerm(offer.years, prof.prefYears) + roleTerm(offer.role, prof.desiredRole) + team;
 }
@@ -157,7 +159,7 @@ function aiOffers(league: League, fa: FreeAgencyState): Map<string, AiOffer[]> {
   const pool = fa.pool.map((id) => league.players[id] as Player).sort((a, b) => b.ovr - a.ovr || a.id.localeCompare(b.id));
   for (const team of league.teams) {
     if (team.isExpansion) continue;
-    const rng = rngFor(league.seed, 'fa-ai', team.id, fa.day);
+    const rng = rngFor(league.seed, 'fa-ai', league.config.seasonStartYear, team.id, fa.day);
     const active = activePlayers(league, team.id);
     const counts: Record<PositionGroup, number> = { F: 0, D: 0, G: 0 };
     for (const p of active) counts[groupOf(p.position)]++;

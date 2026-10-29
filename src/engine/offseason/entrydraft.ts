@@ -7,6 +7,7 @@
 import { EXPANSION_TEAM_ID } from '../franchise';
 import { genPlayer } from '../gen/player';
 import type { DraftPick, League, Player, Position } from '../model';
+import { isInauguralSeason } from '../model';
 import { rngFor } from '../rng';
 import { rangeMid, scoutView } from '../expansion/scouting';
 
@@ -28,17 +29,21 @@ export interface LotteryResult {
 }
 
 export function runLottery(league: League): LotteryResult {
-  const existing = league.teams
-    .filter((t) => !t.isExpansion)
+  const inaugural = isInauguralSeason(league);
+  const ranked = league.teams
+    .filter((t) => !inaugural || !t.isExpansion)
     .sort((a, b) => a.lastSeasonPoints - b.lastSeasonPoints || a.id.localeCompare(b.id))
     .map((t) => t.id);
-  const standing = [...existing.slice(0, 2), EXPANSION_TEAM_ID, ...existing.slice(2)];
-  const lotteryTeams = standing.slice(0, NON_PLAYOFF);
-  const total = ODDS.reduce((a, b) => a + b, 0);
+  // In its first offseason the expansion team gets the third-worst slot; later its own record counts.
+  const standing = inaugural ? [...ranked.slice(0, 2), EXPANSION_TEAM_ID, ...ranked.slice(2)] : ranked;
+  // 16 teams make the playoffs; everybody else is in the lottery.
+  const odds0 = ODDS.slice(0, Math.max(2, Math.min(NON_PLAYOFF, standing.length - 16)));
+  const lotteryTeams = standing.slice(0, odds0.length);
+  const total = odds0.reduce((a, b) => a + b, 0);
   const odds: Record<string, number> = {};
-  lotteryTeams.forEach((t, i) => (odds[t] = (ODDS[i] as number) / total));
+  lotteryTeams.forEach((t, i) => (odds[t] = (odds0[i] as number) / total));
 
-  const rng = rngFor(league.seed, 'lottery');
+  const rng = rngFor(league.seed, 'lottery', league.config.seasonStartYear);
   const first = rng.weighted(lotteryTeams.slice(0, MAX_JUMP + 1), (t) => odds[t] ?? 0);
   const second = rng.weighted(
     lotteryTeams.slice(0, MAX_JUMP + 2).filter((t) => t !== first),
@@ -122,7 +127,7 @@ export function startEntryDraft(league: League, scoutingBudget: number): { leagu
   const cls = generateDraftClass(lg, slots.length + DRAFT_CLASS_EXTRA);
   const prospects: Record<string, Player> = {};
   for (const p of cls) prospects[p.id] = p;
-  const rng = rngFor(lg.seed, 'centralrank');
+  const rng = rngFor(lg.seed, 'centralrank', year);
   const centralRank = cls
     .map((p) => ({ id: p.id, v: p.potential + 0.3 * p.ovr + rng.normal(0, 4) }))
     .sort((a, b) => b.v - a.v)
@@ -145,7 +150,7 @@ function aiChoice(league: League, s: EntryDraftState, teamId: string): Player {
   let best: Player | null = null;
   let bestV = -Infinity;
   for (const p of availableProspects(s)) {
-    const v = p.potential + 0.3 * p.ovr + rngFor(league.seed, 'edraft', teamId, p.id).normal(0, 3) - (p.position === 'G' ? 2 : 0);
+    const v = p.potential + 0.3 * p.ovr + rngFor(league.seed, 'edraft', league.config.seasonStartYear, teamId, p.id).normal(0, 3) - (p.position === 'G' ? 2 : 0);
     if (v > bestV) {
       bestV = v;
       best = p;

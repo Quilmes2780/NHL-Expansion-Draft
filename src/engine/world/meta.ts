@@ -35,7 +35,14 @@ export function fanBaseline(league: League): number {
   return 50 + (city ? (city.tradition - 5) * 2.5 + (city.marketSize - 5) * 0.8 : 0);
 }
 
-export function initMeta(league: League, promises: Record<string, Role>): FranchiseMeta {
+export function initMeta(league: League, promises: Record<string, Role>, previous?: FranchiseMeta | null): FranchiseMeta {
+  if (previous) {
+    // Later seasons: no honeymoon; mood and owner trust carry over, drifting back towards normal.
+    const fans = Math.round(previous.fanMood * 0.7 + fanBaseline(league) * 0.3);
+    const owner = Math.round(previous.ownerSatisfaction * 0.6 + 60 * 0.4);
+    const kept = Object.fromEntries(Object.entries(previous.promises).filter(([id]) => league.players[id]?.teamId === EXPANSION_TEAM_ID));
+    return { fanMood: fans, ownerSatisfaction: owner, attendance: {}, promises: { ...kept, ...promises }, complaints: {}, history: [{ day: 0, fans, owner }] };
+  }
   const fans = Math.round(Math.min(95, fanBaseline(league) + HONEYMOON));
   return { fanMood: fans, ownerSatisfaction: 60, attendance: {}, promises, complaints: {}, history: [{ day: 0, fans, owner: 60 }] };
 }
