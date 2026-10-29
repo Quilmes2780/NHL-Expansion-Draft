@@ -139,10 +139,16 @@ function potentialFor(ovr, age) {
   return Math.min(92, ovr + gain);
 }
 
-/** Fictional in-game salary (same scale as the game's own market value formula). */
+const SALARY_CAP = 113_500_000;
+// DEL ratings span roughly 60–83, the game's salary curve 60–90: stretch the OVR so the best DEL players
+// earn like stars and the payrolls (and the expansion cap corridor) are reachable.
+const SALARY_STRETCH = 1.2;
+
+/** Fictional in-game salary (the game's own market value formula on the stretched OVR). */
 function salaryFor(ovr, age, position) {
-  const top = 113_500_000 * 0.2 * 0.6;
-  let v = MIN_SALARY + Math.pow(Math.max(0, ovr - 60) / 30, 2.2) * top;
+  const top = SALARY_CAP * 0.2 * 0.6;
+  const eff = 60 + (ovr - 60) * SALARY_STRETCH;
+  let v = MIN_SALARY + Math.pow(Math.max(0, eff - 60) / 30, 2.2) * top;
   if (position === 'G') v *= 0.85;
   if (age >= 35) v *= 0.7;
   else if (age >= 32) v *= 0.85;
@@ -225,6 +231,15 @@ for (const [, abbrev] of TEAMS) {
       active++;
     }
     if (active < NEED[g]) warnings.push(`${abbrev}: nur ${active} ${g} im Kader`);
+  }
+  // Stay under the cap: scale down everything above the minimum salary if a team is too expensive.
+  const limit = SALARY_CAP * 0.97;
+  const payroll = own.reduce((s, p) => s + p.contract.capHit, 0);
+  if (payroll > limit) {
+    const fixed = own.filter((p) => p.contract.capHit <= MIN_SALARY).reduce((s, p) => s + p.contract.capHit, 0);
+    const factor = (limit - fixed) / (payroll - fixed);
+    for (const p of own)
+      if (p.contract.capHit > MIN_SALARY) p.contract.capHit = Math.max(MIN_SALARY, Math.floor((p.contract.capHit * factor) / 25_000) * 25_000);
   }
 }
 
