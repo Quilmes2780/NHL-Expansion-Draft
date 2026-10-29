@@ -48,6 +48,7 @@ describe('generateLeague', () => {
         expect(p.contract.capHit).toBeGreaterThanOrEqual(league.config.minSalary);
         expect(p.contract.yearsLeft).toBeGreaterThanOrEqual(0);
         expect(p.contract.yearsLeft).toBeLessThanOrEqual(8);
+        if (p.age >= 33) expect(p.contract.yearsLeft).toBeLessThanOrEqual(4);
       }
       if (p.position === 'G') expect(p.goalie).toBeDefined();
       else expect(p.skater).toBeDefined();

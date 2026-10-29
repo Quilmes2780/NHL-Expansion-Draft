@@ -240,8 +240,8 @@ export function mockDraft(
   league: League,
   protections: Record<string, ProtectionList>,
   fixed: Selection = {},
+  valueOf: (p: Player) => number = (p) => expansionValue(p, league.config),
 ): Selection {
-  const cfg = league.config;
   const teamIds = Object.keys(protections).sort();
   const cands = new Map<string, Player[]>();
   const val = new Map<string, number>();
@@ -249,7 +249,7 @@ export function mockDraft(
     const list = fixed[t]
       ? [league.players[fixed[t] as string] as Player]
       : selectableCandidates(league, protections[t] as ProtectionList);
-    for (const p of list) val.set(p.id, expansionValue(p, cfg));
+    for (const p of list) val.set(p.id, valueOf(p));
     cands.set(t, list.sort((a, b) => (val.get(b.id) ?? 0) - (val.get(a.id) ?? 0) || a.id.localeCompare(b.id)));
   }
   const pick = new Map<string, Player>();

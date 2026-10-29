@@ -6,9 +6,9 @@ import type { AnalystComment } from './analyst';
 import { revealComments } from './analyst';
 import type { ProtectionList, Violation } from './protection';
 import { aiProtectAll } from './protection';
-import { MAX_SCOUT_LEVEL, SCOUT_COST } from './scouting';
+import { MAX_SCOUT_LEVEL, SCOUT_COST, rangeMid, scoutView } from './scouting';
 import type { DraftGrades, Selection } from './selection';
-import { gradeDraft, isSelectable, mockDraft, validateSelection } from './selection';
+import { expansionValue, gradeDraft, isSelectable, mockDraft, validateSelection } from './selection';
 
 export interface ExpansionDraftState {
   protections: Record<string, ProtectionList>;
@@ -70,6 +70,19 @@ export function selectPlayer(league: League, s: ExpansionDraftState, teamId: str
 export function toggleWishlist(s: ExpansionDraftState, playerId: string): ExpansionDraftState {
   const has = s.wishlist.includes(playerId);
   return { ...s, wishlist: has ? s.wishlist.filter((x) => x !== playerId) : [...s.wishlist, playerId] };
+}
+
+/** Value as the player's scouts see it: ratings replaced by the midpoints of the scouted ranges. */
+export function perceivedValue(league: League, s: ExpansionDraftState, p: Player): number {
+  const view = scoutView(league.seed, p, scoutLevel(s, p.id));
+  return expansionValue({ ...p, ovr: rangeMid(view.ovr), potential: rangeMid(view.potential) }, league.config);
+}
+
+/** Fill the teams without a pick using only the information the player has (no true ratings). */
+export function autoFillSelection(league: League, s: ExpansionDraftState): ExpansionDraftState {
+  if (s.grades) return s;
+  const selection = mockDraft(league, s.protections, s.selection, (p) => perceivedValue(league, s, p));
+  return { ...s, selection };
 }
 
 export type SubmitResult =

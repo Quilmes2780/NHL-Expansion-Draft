@@ -72,4 +72,8 @@ export const EXPANSION_CITIES: CityProfile[] = [
   { id: 'omaha', city: 'Omaha', region: 'Nebraska', lat: 41.26, lon: -95.93, marketSize: 4, tradition: 5, arenaCapacity: 16000, taxAdvantage: 5, travelLoad: 5, blurb: 'Kleiner Markt mit College-Hockey-Begeisterung und günstigen Kosten.' },
 ];
 
+/** Ids of the generic logo icons (the UI maps them to SVG paths). */
+export const LOGO_ICONS = ['star', 'bolt', 'mountain', 'wave', 'crown', 'flame', 'snowflake', 'anchor', 'pine', 'sticks', 'puck', 'arrow'] as const;
+export const LOGO_SHAPES = ['shield', 'circle', 'hexagon', 'diamond', 'square'] as const;
+
 export const EXPANSION_NAME_IDEAS = ['Stingers', 'Bluejacks', 'Wildcats', 'Comets', 'Glaciers', 'Huskies', 'Blades', 'Sentinels', 'Pioneers', 'Storm'];

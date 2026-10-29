@@ -66,5 +66,9 @@ export function contractSurplus(p: Player, cfg: LeagueConfig): number {
   return total / 1_000_000;
 }
 
+/** Compact form for dense tables, e.g. "9,15 M". */
+export const formatMoneyShort = (dollars: number): string =>
+  `${(dollars / 1_000_000).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M`;
+
 export const formatMoney = (dollars: number): string =>
   `${(dollars / 1_000_000).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Mio. $`;

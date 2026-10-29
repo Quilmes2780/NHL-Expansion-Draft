@@ -1,6 +1,12 @@
 # PLAN – "Team 33 – NHL Expansion Draft GM"
 
-Status: **Entwurf v1** (vor Start von M1). Offene Punkte siehe Abschnitt 6.
+Status: **M1–M3 abgeschlossen** (je ein Commit). Review durch den Auftraggeber vor M4.
+
+Abweichungen/Ergänzungen gegenüber dem Plan:
+- Kein ESLint; die Engine-Regeln (keine UI-Imports, kein `Math.random`/`Date.now`/DOM) prüft ein Architekturtest.
+- Der Build erzeugt eine einzige inline-`dist/index.html` (vite-plugin-singlefile), die auch per `file://` läuft.
+- Draft Board hat zusätzlich „Rest auto-füllen“: füllt offene Teams nur auf Basis der gescouteten Spannen (keine echten Werte).
+- Spielstände werden noch nicht gespeichert (M8) – ein Reload startet neu.
 
 ---
 

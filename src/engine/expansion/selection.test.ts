@@ -5,7 +5,7 @@ import { generateLeague } from '../gen/league';
 import type { League } from '../model';
 import { groupOf } from '../model';
 import { isPendingUfa } from './eligibility';
-import { scoutPlayer, selectPlayer, startExpansionDraft, submitExpansionDraft } from './draft';
+import { autoFillSelection, scoutPlayer, selectPlayer, startExpansionDraft, submitExpansionDraft } from './draft';
 import { scoutView } from './scouting';
 import type { Selection } from './selection';
 import { gradeDraft, mockDraft, selectableCandidates, summarizeSelection, validateSelection } from './selection';
@@ -147,6 +147,20 @@ describe('draft flow', () => {
     const g = gradeDraft(league, s.protections, mock, mock);
     expect(g.overall).toBe('A');
     expect(g.picks.every((p) => ['A', 'B', 'C', 'D', 'F'].includes(p.grade))).toBe(true);
+  });
+});
+
+describe('autoFillSelection', () => {
+  it('fills the remaining teams validately using only scouted information', () => {
+    for (let i = 0; i < 10; i++) {
+      const league = withFranchise(`autofill-${i}`);
+      let s = startExpansionDraft(league);
+      const [t0, l0] = Object.entries(s.protections)[0]!;
+      s = selectPlayer(league, s, t0, selectableCandidates(league, l0)[0]!.id);
+      const filled = autoFillSelection(league, s);
+      expect(filled.selection[t0]).toBe(s.selection[t0]);
+      expect(validateSelection(league, filled.protections, filled.selection)).toEqual([]);
+    }
   });
 });
 

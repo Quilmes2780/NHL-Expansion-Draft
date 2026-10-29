@@ -2,7 +2,7 @@
 
 import type { LeagueConfig } from '../config';
 import { capFloor, defaultConfig, maxSalary } from '../config';
-import { DIVISIONS, EXISTING_TEAMS } from '../data/cities';
+import { DIVISIONS, EXISTING_TEAMS, LOGO_ICONS, LOGO_SHAPES } from '../data/cities';
 import { GM_FIRST, GM_LAST } from '../data/names';
 import {
   countGroups,
@@ -54,10 +54,12 @@ function pickPersonality(rng: Rng, quality: number): Personality {
   );
 }
 
-function pickYearsLeft(rng: Rng, ovr: number): number {
+function pickYearsLeft(rng: Rng, ovr: number, age: number): number {
   const star = ovr >= 80;
   const weights = star ? [8, 10, 14, 16, 16, 14, 12, 8, 2] : [20, 22, 19, 15, 10, 7, 4, 2, 1];
-  return rng.weighted([0, 1, 2, 3, 4, 5, 6, 7, 8], (y) => weights[y] ?? 0);
+  // Veterans rarely get long terms: a 33-year-old signs for 4 years at most.
+  const maxYears = Math.max(1, Math.min(8, 37 - age));
+  return Math.min(maxYears, rng.weighted([0, 1, 2, 3, 4, 5, 6, 7, 8], (y) => weights[y] ?? 0));
 }
 
 function makeContract(rng: Rng, p: Player, cfg: LeagueConfig, forceElc: boolean): Contract {
@@ -74,7 +76,7 @@ function makeContract(rng: Rng, p: Player, cfg: LeagueConfig, forceElc: boolean)
       twoWay: true,
     };
   }
-  const yearsLeft = pickYearsLeft(rng, p.ovr);
+  const yearsLeft = pickYearsLeft(rng, p.ovr, p.age);
   const value = marketValue(p.ovr, p.age, p.position, cfg) * Math.exp(rng.normal(0, 0.22));
   return {
     capHit: Math.min(maxSalary(cfg), Math.max(cfg.minSalary, round25k(value))),
@@ -266,13 +268,15 @@ export function generateLeague(seed: string, cfg: LeagueConfig = defaultConfig()
   EXISTING_TEAMS.slice(0, cfg.existingTeams).forEach((def, i) => {
     const rng = rngFor(seed, 'gen', 'team', i);
     const quality = Math.max(-5, Math.min(5, rng.normal(0, 2.4)));
+    const logoRng = rngFor(seed, 'gen', 'logo', i);
+    const colors = { primary: def.primary, secondary: def.secondary, accent: '#e5e7eb' };
     const team: Team = {
       id: def.abbrev.toLowerCase(),
       city: def.city,
       name: def.name,
       abbrev: def.abbrev,
-      colors: { primary: def.primary, secondary: def.secondary, accent: '#e5e7eb' },
-      logo: { shape: 'shield', icon: 'star', colors: { primary: def.primary, secondary: def.secondary, accent: '#e5e7eb' }, text: def.abbrev },
+      colors,
+      logo: { shape: logoRng.pick(LOGO_SHAPES), icon: logoRng.pick(LOGO_ICONS), colors, text: '' },
       conference: def.conference,
       division: def.division,
       lat: def.lat,

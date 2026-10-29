@@ -51,13 +51,11 @@ export function scoutView(seed: string, p: Player, level: number, exact = false)
   }
   const attrs: Record<string, Range> = {};
   for (const k of keys) attrs[k] = nestedRange(seed, `${p.id}|${k}`, values?.[k] ?? 0, level, ATTR_HALF);
-  return {
-    level,
-    exact: false,
-    ovr: nestedRange(seed, `${p.id}|ovr`, p.ovr, level, OVR_HALF),
-    potential: nestedRange(seed, `${p.id}|pot`, Math.max(p.potential, p.ovr), level, POT_HALF),
-    attrs,
-  };
+  const ovr = nestedRange(seed, `${p.id}|ovr`, p.ovr, level, OVR_HALF);
+  const pot = nestedRange(seed, `${p.id}|pot`, Math.max(p.potential, p.ovr), level, POT_HALF);
+  // Potential can never be shown below the current rating.
+  const potential: Range = [Math.max(pot[0], ovr[0]), Math.max(pot[1], ovr[1])];
+  return { level, exact: false, ovr, potential, attrs };
 }
 
 export const rangeMid = (r: Range): number => (r[0] + r[1]) / 2;

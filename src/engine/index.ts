@@ -6,7 +6,7 @@ export * from './rng';
 export * from './value';
 export * from './franchise';
 export { generateLeague, rosterCounts } from './gen/league';
-export { EXPANSION_CITIES, EXISTING_TEAMS } from './data/cities';
+export { EXPANSION_CITIES, EXISTING_TEAMS, EXPANSION_NAME_IDEAS, LOGO_ICONS, LOGO_SHAPES } from './data/cities';
 export { NATIONS } from './data/names';
 export * from './expansion/eligibility';
 export * from './expansion/protection';
