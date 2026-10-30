@@ -10,7 +10,7 @@ import { runLottery, simEntryDraft } from './entrydraft';
 import { advanceFaDay, autoFillRoster } from './freeagency';
 import { autoLineup, bestActiveRoster, seasonReadiness } from './lineup';
 import { finishEntryDraft, startOffseason } from './offseason';
-import { advanceSeason, retirementChance } from './rollover';
+import { advanceSeason, retirementChance, signDraftPick, unsignedPicks } from './rollover';
 
 /** One complete season (regular season + playoffs) from a ready roster. */
 function playSeason(pre: { league: ReturnType<typeof autoPreseason>['league']; lineup: ReturnType<typeof autoPreseason>['lineup'] }, previousMeta: Parameters<typeof startSeason>[5] = null) {
@@ -91,6 +91,24 @@ describe('season rollover', () => {
     const lot = runLottery(after);
     const worst = [...after.teams].sort((a, b) => a.lastSeasonPoints - b.lastSeasonPoints || a.id.localeCompare(b.id)).map((t) => t.id);
     expect(lot.standing).toEqual(worst);
+  });
+
+  it('lets the user sign draft picks to entry-level contracts', () => {
+    const off = startOffseason(roll.league);
+    const d = simEntryDraft(off.league, off.state.draft);
+    const lg = finishEntryDraft(d.league, { ...off.state, draft: d.state }).league;
+    const picks = unsignedPicks(lg, EXPANSION_TEAM_ID);
+    expect(picks.length).toBeGreaterThan(0);
+    const pick = picks[0]!;
+    const r = signDraftPick(lg, EXPANSION_TEAM_ID, pick.id);
+    expect(r.error).toBeNull();
+    const signed = r.league.players[pick.id]!;
+    expect(signed.contract).toMatchObject({ elc: true, yearsLeft: 3, twoWay: true });
+    expect(signed.farm).toBe(true);
+    expect(unsignedPicks(r.league, EXPANSION_TEAM_ID).map((p) => p.id)).not.toContain(pick.id);
+    expect(signDraftPick(r.league, EXPANSION_TEAM_ID, pick.id).error).toBeTruthy();
+    const foreign = Object.values(lg.players).find((p) => p.teamId && p.teamId !== EXPANSION_TEAM_ID && !p.contract)!;
+    expect(signDraftPick(lg, EXPANSION_TEAM_ID, foreign.id).error).toBeTruthy();
   });
 
   it('is deterministic', () => {

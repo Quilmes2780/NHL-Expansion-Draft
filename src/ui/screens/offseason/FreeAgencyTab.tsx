@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { Player } from '../../../engine';
 import {
+  EXPANSION_TEAM_ID,
   FA_DAYS,
   agentHint,
+  entryLevelContract,
   formatMoney,
+  formatMoneyShort,
   formatRange,
   fullName,
   groupOf,
@@ -12,6 +15,7 @@ import {
   roleLabel,
   scoutLevel,
   scoutView,
+  unsignedPicks,
   userCapSpace,
 } from '../../../engine';
 import { useGame } from '../../../store/game';
@@ -22,8 +26,9 @@ const FA_TIP =
   'Free Agency läuft über mehrere Tage. Gib Angebote ab und beende den Tag: Jeder Spieler wählt das für ihn beste Angebot (Geld, Laufzeit, Rolle, Team/Stadt), sobald es seine Erwartung erfüllt. Seine Ansprüche sinken von Tag zu Tag leicht. Offene Angebote blockieren Cap Space.';
 
 export function FreeAgencyTab() {
-  const { offLeague, off, draft, faOffer, faWithdraw, faAdvance, finishFa, faOwnRfa, faAutoFill, openPlayer } = useGame();
+  const { offLeague, off, draft, faOffer, faWithdraw, faAdvance, finishFa, faOwnRfa, faAutoFill, signPick, openPlayer } = useGame();
   const [filled, setFilled] = useState<string[] | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [group, setGroup] = useState<'all' | 'F' | 'D' | 'G'>('all');
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +49,7 @@ export function FreeAgencyTab() {
   const cur = selected ? offLeague.players[selected] : shown[0];
   const space = userCapSpace(offLeague, fa);
   const ownRfas = Object.entries(fa.ownRfas);
+  const picks = unsignedPicks(offLeague, EXPANSION_TEAM_ID);
 
   return (
     <div className="space-y-4">
@@ -131,6 +137,53 @@ export function FreeAgencyTab() {
               );
             })}
           </div>
+        </Panel>
+      )}
+
+      {picks.length > 0 && (
+        <Panel title={`Ungesignte Draft Picks (${picks.length})`} actions={<Tip text="Draft Picks ohne Vertrag zählen nicht gegen Cap und 50-Verträge-Limit. Mit 20 Jahren erhalten sie automatisch ihren Einstiegsvertrag (ELC). Gesignte Picks starten im Farmteam; ein ELC zählt dort nicht gegen den Cap." />}>
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm tabular">
+            <thead className="bg-coal-850 text-left text-[11px] uppercase tracking-wider text-slate-400">
+              <tr>
+                <th className="px-3 py-2">Spieler</th>
+                <th className="px-3 py-2">Pos</th>
+                <th className="px-3 py-2 text-right">Alter</th>
+                <th className="px-3 py-2 text-right">OVR</th>
+                <th className="px-3 py-2 text-right">Pot.</th>
+                <th className="px-3 py-2 text-right">ELC</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-coal-800">
+              {picks.map((p) => {
+                const elc = entryLevelContract(offLeague, p);
+                return (
+                  <tr key={p.id}>
+                    <td className="px-3 py-1">
+                      <button type="button" className="hover:text-ice-300" onClick={() => openPlayer(p.id)}>
+                        {fullName(p)}
+                      </button>
+                    </td>
+                    <td className="px-3 font-mono text-xs">{p.position}</td>
+                    <td className="px-3 text-right font-mono">{p.age}</td>
+                    <td className="px-3 text-right font-mono">{p.ovr}</td>
+                    <td className="px-3 text-right font-mono">{p.potential}</td>
+                    <td className="whitespace-nowrap px-3 text-right font-mono text-slate-300">
+                      {formatMoneyShort(elc.capHit)} · {elc.yearsLeft} J.
+                    </td>
+                    <td className="px-3 py-1 text-right">
+                      <Button variant="ghost" className="px-2 py-0.5 text-xs" onClick={() => setPickError(signPick(p.id))}>
+                        Signen
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          </div>
+          {pickError && <p className="px-3 pb-3 text-xs text-rose-300">{pickError}</p>}
         </Panel>
       )}
 

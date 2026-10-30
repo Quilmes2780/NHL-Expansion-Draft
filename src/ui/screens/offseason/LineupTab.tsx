@@ -34,7 +34,7 @@ function PlayerSelect({ value, options, onChange, label }: { value: Slot; option
 }
 
 export function LineupTab() {
-  const { offLeague, setLineup, autoLineup, bestRoster, toggleFarm, openPlayer, season } = useGame();
+  const { offLeague, setLineup, autoLineup, bestRoster, toggleFarm, openPlayer, season, settings } = useGame();
   const l = useGame(selectMyLineup);
   const [error, setError] = useState<string | null>(null);
   if (!offLeague || !l) return null;
@@ -57,20 +57,23 @@ export function LineupTab() {
   const rosterRow = (p: Player) => (
     <li key={p.id} className="flex items-center gap-2 px-3 py-1 text-xs">
       <span className="w-6 font-mono text-slate-500">{p.position}</span>
-      <button type="button" className="flex-1 truncate text-left text-slate-200 hover:text-ice-300" onClick={() => openPlayer(p.id)}>
-        {fullName(p)}
-      </button>
-      <span className="w-6 font-mono text-slate-300">{p.ovr}</span>
-      <span className="w-14 text-right font-mono text-slate-400" title={contractLabel(p)}>
+      {/* Tags sit next to the name, so strength and salary stay in fixed columns for every player. */}
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <button type="button" className="min-w-0 truncate text-left text-slate-200 hover:text-ice-300" onClick={() => openPlayer(p.id)}>
+          {fullName(p)}
+        </button>
+        {p.farm && countsAgainstCap(p) && <Badge tone="amber" title="One-Way-Vertrag zählt auch im Farmteam gegen den Cap">Cap</Badge>}
+        {p.injury && <Badge tone="rose" title={`${p.injury.description}, noch ${p.injury.gamesRemaining} Spiele`}>verl. {p.injury.gamesRemaining}</Badge>}
+        {season && !p.farm && needsWaivers(p) && <Badge title="Muss beim Runterschicken über Waivers">W</Badge>}
+      </div>
+      <span className="w-6 shrink-0 text-right font-mono text-slate-300">{p.ovr}</span>
+      <span className="w-14 shrink-0 text-right font-mono text-slate-400" title={contractLabel(p)}>
         {p.contract ? formatMoneyShort(p.contract.capHit) : 'ungesignt'}
       </span>
-      {p.farm && countsAgainstCap(p) && <Badge tone="amber" title="One-Way-Vertrag zählt auch im Farmteam gegen den Cap">Cap</Badge>}
-      {p.injury && <Badge tone="rose" title={`${p.injury.description}, noch ${p.injury.gamesRemaining} Spiele`}>verl. {p.injury.gamesRemaining}</Badge>}
-      {season && !p.farm && needsWaivers(p) && <Badge title="Muss beim Runterschicken über Waivers">W</Badge>}
       <button
         type="button"
         onClick={() => setError(toggleFarm(p.id))}
-        className="rounded border border-coal-600 px-1.5 text-[11px] text-slate-300 hover:border-ice-400"
+        className="w-14 shrink-0 rounded border border-coal-600 px-1.5 text-[11px] text-slate-300 hover:border-ice-400"
         title={p.farm ? 'In den NHL-Kader berufen' : season && needsWaivers(p) ? 'Ins Farmteam schicken – muss über Waivers (andere Teams können ihn claimen)' : 'Ins Farmteam schicken'}
       >
         {p.farm ? '↑ NHL' : '↓ Farm'}
@@ -97,6 +100,11 @@ export function LineupTab() {
             <Button variant="ghost" onClick={bestRoster} title="Bildet aus allen Spielern mit Vertrag den besten NHL-Kader (Rest ins Farmteam) und setzt die Auto-Aufstellung.">
               Besten NHL-Kader bilden
             </Button>
+          )}
+          {season && settings.autoLineup && (
+            <span className="w-full text-xs text-amber-200">
+              Vor jedem Spieltag wird automatisch die bestmögliche Aufstellung gesetzt – eigene Änderungen gelten nur bis dahin. Abschaltbar im Menü unter Einstellungen.
+            </span>
           )}
           <span className="flex items-center text-xs text-slate-400">
             Spieler außerhalb ihrer Position verlieren Rating <Tip text="Center auf dem Flügel: −1, Flügel als Center: −4, Verteidiger im Sturm: −10, Stürmer in der Verteidigung: −12." />

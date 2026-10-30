@@ -72,6 +72,8 @@ export interface SeasonEvent {
 export interface SeasonOptions {
   misfitsBonus: boolean;
   goalieMode: GoalieMode;
+  /** Set the best possible lineup for the own team before every game day (user setting). */
+  dailyAutoLineup?: boolean;
 }
 
 export interface SeasonState {
@@ -195,16 +197,21 @@ export function gameDayLineup(
   if (saved && !lineupBroken(league, teamId, saved)) return { lineup: saved, saved: null, change: 'restored' };
   if (!lineupBroken(league, teamId, current)) return { lineup: current, saved, change: null };
   const own = saved ?? current;
+  const auto = bestLineupKeepingLeaders(league, teamId, own);
+  // A thin roster can leave even the auto lineup incomplete: only report actual changes.
+  if (JSON.stringify(auto) === JSON.stringify(current)) return { lineup: current, saved: own, change: null };
+  return { lineup: auto, saved: own, change: 'auto' };
+}
+
+/** The auto lineup; the leadership group stays as chosen as long as all of them can play. */
+export function bestLineupKeepingLeaders(league: League, teamId: string, own: Lineup): Lineup {
   const auto = autoLineup(league, teamId);
-  // The leadership group stays as chosen as long as all of them can play.
   const ok = (id: string | null) => !!id && league.players[id]?.teamId === teamId && !league.players[id]?.farm && healthy(league.players[id] as Player);
   if (ok(own.captain) && own.assistants.every(ok)) {
     auto.captain = own.captain;
     auto.assistants = own.assistants;
   }
-  // A thin roster can leave even the auto lineup incomplete: only report actual changes.
-  if (JSON.stringify(auto) === JSON.stringify(current)) return { lineup: current, saved: own, change: null };
-  return { lineup: auto, saved: own, change: 'auto' };
+  return auto;
 }
 
 /** Call up farm players if the team cannot dress 12 F, 6 D and 2 G. */
@@ -351,6 +358,15 @@ export function simDay(league: League, s0: SeasonState): DayResult {
     if (teamId !== EXPANSION_TEAM_ID) {
       // AI coaches dress their best healthy players every night (also right after a star returns).
       s.lineups[teamId] = autoLineup(lg, teamId);
+      continue;
+    }
+    if (s.options.dailyAutoLineup) {
+      // Best possible lineup every game day: injuries and returns are handled without the user.
+      const cur = s.lineups[teamId] as Lineup;
+      const best = bestLineupKeepingLeaders(lg, teamId, s.savedLineup ?? cur);
+      if (JSON.stringify(best) !== JSON.stringify(cur)) s.log.push({ day, teamId, kind: 'info', text: 'Aufstellung automatisch optimiert.' });
+      s.lineups[teamId] = best;
+      s.savedLineup = null;
       continue;
     }
     const r = gameDayLineup(lg, teamId, s.lineups[teamId] as Lineup, s.savedLineup ?? null);

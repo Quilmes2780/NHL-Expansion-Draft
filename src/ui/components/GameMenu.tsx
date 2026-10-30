@@ -146,6 +146,20 @@ function SettingsPanel() {
       <label className="flex items-center gap-2 text-slate-300">
         <input type="checkbox" checked={tickerEnabled} onChange={(e) => setTicker(e.target.checked)} /> Kurz-Ticker für eigene Spiele
       </label>
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2 text-slate-300">
+          <input type="checkbox" checked={settings.autoLineup} onChange={(e) => updateSettings({ autoLineup: e.target.checked })} /> Vor jedem Spieltag automatisch die
+          bestmögliche Aufstellung setzen
+        </label>
+        <p className="pl-6 text-xs text-slate-500">
+          Aus: Deine eigene Aufstellung gilt; nur bei Verletzungen springt die Auto-Aufstellung ein, bis alle wieder fit sind.
+        </p>
+        <label className="flex items-center gap-2 text-slate-300">
+          <input type="checkbox" checked={settings.stopOnReturn} onChange={(e) => updateSettings({ stopOnReturn: e.target.checked })} /> Simulation auch anhalten, wenn ein
+          verletzter Spieler wieder fit ist
+        </label>
+        <p className="pl-6 text-xs text-slate-500">Bei Verletzungen im eigenen Team stoppt die Simulation immer. Diese Option verlangsamt den Spielfluss.</p>
+      </div>
       {season && (
         <label className="flex items-center gap-2 text-slate-300">
           <input type="checkbox" checked={season.options.misfitsBonus} onChange={(e) => setSeasonOption({ misfitsBonus: e.target.checked })} /> Misfits-Bonus für

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { BoxScore, PlayoffState, Series } from '../../engine';
-import { EXPANSION_TEAM_ID, ROUND_NAMES, dayLabel, isEliminated, seriesOf, skaterTable } from '../../engine';
+import { EXPANSION_TEAM_ID, ROUND_NAMES, dayLabel, isEliminated, seriesOf } from '../../engine';
 import { useGame } from '../../store/game';
 import { BoxScoreModal } from '../components/BoxScoreView';
 import { Logo } from '../components/Logo';
@@ -8,6 +8,7 @@ import { Button, Panel, Tip } from '../components/ui';
 import { NewsFeed, OwnerFansPanel } from '../components/WorldPanels';
 import { LineupTab } from './offseason/LineupTab';
 import { SimNotice } from '../components/SimNotice';
+import { StatsTab } from './season/StatsTab';
 
 function SeriesCard({ s, po, highlight, onSelect }: { s: Series | undefined; po: PlayoffState; highlight: boolean; onSelect: (s: Series) => void }) {
   const { offLeague } = useGame();
@@ -173,12 +174,11 @@ function RoundResults({
 }
 
 export function PlayoffsScreen() {
-  const { offLeague, playoffs: po, simulatePlayoffs, simulating, lastBoxes, tickerEnabled, clearBoxes, finishSeason, openPlayer } = useGame();
+  const { offLeague, playoffs: po, simulatePlayoffs, simulating, lastBoxes, tickerEnabled, clearBoxes, finishSeason } = useGame();
   const [tab, setTab] = useState<'bracket' | 'stats' | 'lineup'>('bracket');
   const [resultRound, setResultRound] = useState<number | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [openBox, setOpenBox] = useState<BoxScore | null>(null);
-  const scorers = useMemo(() => (offLeague && po ? skaterTable(offLeague, po.season).slice(0, 15) : []), [offLeague, po]);
   if (!offLeague || !po) return null;
   const mySeries = seriesOf(po, EXPANSION_TEAM_ID);
   const out = isEliminated(po, EXPANSION_TEAM_ID);
@@ -223,7 +223,7 @@ export function PlayoffsScreen() {
         {(
           [
             ['bracket', 'Bracket'],
-            ['stats', 'Playoff-Scorer'],
+            ['stats', 'Playoff-Statistik'],
             ['lineup', 'Aufstellung'],
           ] as const
         ).map(([id, label]) => (
@@ -246,38 +246,7 @@ export function PlayoffsScreen() {
           <RoundResults po={po} round={Math.min(resultRound ?? latestPlayedRound(po), po.rounds.length - 1)} setRound={setResultRound} selected={selected} onBox={setOpenBox} />
         </>
       )}
-      {tab === 'stats' && (
-        <Panel title="Playoff-Scorer">
-          <table className="w-full text-sm tabular">
-            <thead className="bg-coal-850 text-left text-[11px] uppercase tracking-wider text-slate-400">
-              <tr>
-                {['Spieler', 'Team', 'GP', 'G', 'A', 'P', '+/-'].map((h) => (
-                  <th key={h} className="px-3 py-2">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-coal-800">
-              {scorers.map((r) => (
-                <tr key={r.playerId} className={r.teamId === EXPANSION_TEAM_ID ? 'bg-ice-500/10' : ''}>
-                  <td className="px-3 py-1">
-                    <button type="button" className="hover:text-ice-300" onClick={() => openPlayer(r.playerId)}>
-                      {r.name}
-                    </button>
-                  </td>
-                  <td className="px-3 font-mono text-xs">{offLeague.teams.find((t) => t.id === r.teamId)?.abbrev}</td>
-                  <td className="px-3 font-mono">{r.gp}</td>
-                  <td className="px-3 font-mono">{r.g}</td>
-                  <td className="px-3 font-mono">{r.a}</td>
-                  <td className="px-3 font-mono font-bold text-white">{r.p}</td>
-                  <td className="px-3 font-mono">{r.pm > 0 ? `+${r.pm}` : r.pm}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-      )}
+      {tab === 'stats' && <StatsTab state={po.season} playoffs />}
       {tab === 'lineup' && <LineupTab />}
 
       <div className="grid gap-4 lg:grid-cols-3">

@@ -13,7 +13,8 @@ Offseason → 82 Spiele → Playoffs → Saisonbilanz, Speicherstände mit Autos
   gespeichert in IndexedDB (Fallback: localStorage). „Als Datei exportieren“ / „Spielstand-Datei importieren“
   (Format `team33-save`, Version 1) für Backups oder andere Rechner. Auf dem Startbildschirm: „Fortsetzen“.
 - *Einstellungen*: Simulations-/Animationsgeschwindigkeit (Reveal, Draft-Abend, Ticker), Kurz-Ticker, Misfits-Bonus,
-  Tutorial-Hinweise an/aus/zurücksetzen. Regelset, Seed und Schwierigkeit (Scouting-Budget, KI-Aufschlag bei Trades)
+  automatische Bestaufstellung vor jedem Spieltag (Standard: an), Simulationsstopp bei Genesung (Standard: aus; bei
+  Verletzungen stoppt sie immer), Tutorial-Hinweise an/aus/zurücksetzen. Regelset, Seed und Schwierigkeit (Scouting-Budget, KI-Aufschlag bei Trades)
   werden beim Start einer neuen Liga gewählt.
 - *Achievements*: Übersicht über alle Spiele in diesem Browser.
 - **Tutorial:** kurze Hinweiskarte beim ersten Besuch jeder Phase; die ?-Symbole erklären überall die Regeln.
@@ -94,7 +95,7 @@ Doppelklick (`file://`), ohne Server.
 13. **Folgesaisons:** Ohne Expansion Draft geht es direkt in die nächste Offseason. Beim Saisonwechsel
     (`engine/offseason/rollover.ts`) werden Statistiken übernommen, Spieler altern und entwickeln sich (Junge wachsen
     Richtung Potenzial, ab ca. 30 geht es bergab, Goalies zwei Jahre später), Verträge verlieren ein Jahr,
-    unsignierte Draftpicks bekommen mit 20 einen Einstiegsvertrag, Draftpicks rollen ein Jahr weiter. Karriereende:
+    unsignierte Draftpicks bekommen mit 20 einen Einstiegsvertrag (in der Free Agency schon vorher per „Signen“), Draftpicks rollen ein Jahr weiter. Karriereende:
     je älter, desto wahrscheinlicher (ab 31, Goalies ab 33) – vor allem bei auslaufendem Vertrag, unter Vertrag nur
     selten (ab 36); Stars spielen länger, Randspieler hören früher auf, vertragslose Free Agents ab 28 verlassen die
     Liga eher. Die Lotterie richtet sich nun nach der eigenen Bilanz, Fans und Owner-Zufriedenheit werden

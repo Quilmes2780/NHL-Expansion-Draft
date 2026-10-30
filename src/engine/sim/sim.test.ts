@@ -142,6 +142,22 @@ describe('season', () => {
     expect(r.lineup.goalies).toContain(backup);
   });
 
+  it('sets the best lineup every game day when the user wants it, keeping the captain', () => {
+    const st = startSeason(pre.league, pre.lineup, { dailyAutoLineup: true });
+    // A deliberately poor lineup: first and fourth line swapped.
+    const poor = { ...pre.lineup, forwards: [pre.lineup.forwards[3]!, pre.lineup.forwards[1]!, pre.lineup.forwards[2]!, pre.lineup.forwards[0]!] };
+    const first = st.state.games.find((g) => g.home === EXPANSION_TEAM_ID || g.away === EXPANSION_TEAM_ID)!.day;
+    let s = { ...st.state, day: first, lineups: { ...st.state.lineups, [EXPANSION_TEAM_ID]: poor } };
+    const r = simDay(st.league, s);
+    const best = autoLineup(st.league, EXPANSION_TEAM_ID);
+    expect(r.state.lineups[EXPANSION_TEAM_ID]!.forwards).toEqual(best.forwards);
+    expect(r.state.lineups[EXPANSION_TEAM_ID]!.captain).toBe(pre.lineup.captain);
+    expect(r.state.log.some((e) => e.text === 'Aufstellung automatisch optimiert.')).toBe(true);
+    // Without the option the user's own lineup is played.
+    s = { ...s, options: { ...s.options, dailyAutoLineup: false } };
+    expect(simDay(st.league, s).state.lineups[EXPANSION_TEAM_ID]).toEqual(poor);
+  });
+
   it('runs waivers deterministically', () => {
     const st = startSeason(pre.league, pre.lineup);
     const cand = playersOfTeam(st.league, EXPANSION_TEAM_ID).find((p) => !p.farm && needsWaivers(p));

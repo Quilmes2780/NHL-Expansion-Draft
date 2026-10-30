@@ -98,7 +98,7 @@ export function Badge({ children, tone = 'slate', title }: { children: ReactNode
     violet: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
   };
   return (
-    <span title={title} className={`inline-flex items-center rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${tones[tone]}`}>
+    <span title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${tones[tone]}`}>
       {children}
     </span>
   );

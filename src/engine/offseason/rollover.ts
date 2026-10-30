@@ -8,7 +8,7 @@
 
 import { EXPANSION_TEAM_ID } from '../franchise';
 import type { Contract, DraftPick, League, Player, SeasonStats } from '../model';
-import { GOALIE_ATTRS, SKATER_ATTRS } from '../model';
+import { GOALIE_ATTRS, SKATER_ATTRS, contractCount, fullName, playersOfTeam } from '../model';
 import { rngFor } from '../rng';
 import { goalieOvr, skaterOvr } from '../value';
 import type { PlayoffState } from '../sim/playoffs';
@@ -116,7 +116,7 @@ function statsOf(s: SeasonState, p: Player): SeasonStats {
 }
 
 /** Entry-level contract for a draft pick turning pro. */
-function entryLevelContract(league: League, p: Player): Contract {
+export function entryLevelContract(league: League, p: Player): Contract {
   const cfg = league.config;
   return {
     capHit: round25k(clamp(cfg.minSalary + (p.potential - 60) * 40_000, cfg.minSalary, cfg.elcMaxCapHit)),
@@ -128,6 +128,22 @@ function entryLevelContract(league: League, p: Player): Contract {
     elc: true,
     twoWay: true,
   };
+}
+
+const MAX_CONTRACTS = 50;
+
+/** Draft picks of a team that have not signed a contract yet (they turn pro automatically at 20). */
+export const unsignedPicks = (league: League, teamId: string): Player[] =>
+  playersOfTeam(league, teamId)
+    .filter((p) => !p.contract && !p.retired)
+    .sort((a, b) => b.potential - a.potential || a.id.localeCompare(b.id));
+
+/** Sign an own draft pick to his entry-level contract now (he starts in the farm team). */
+export function signDraftPick(league: League, teamId: string, playerId: string): { league: League; error: string | null } {
+  const p = league.players[playerId];
+  if (!p || p.teamId !== teamId || p.contract || p.retired) return { league, error: 'Kein ungesignter Draft Pick deines Teams.' };
+  if (contractCount(league, teamId) >= MAX_CONTRACTS) return { league, error: `Maximal ${MAX_CONTRACTS} Verträge – für ${fullName(p)} ist kein Platz.` };
+  return { league: { ...league, players: { ...league.players, [p.id]: { ...p, contract: entryLevelContract(league, p), farm: true } } }, error: null };
 }
 
 /** Move the league from the season that just ended to the next one. */

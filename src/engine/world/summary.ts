@@ -2,7 +2,7 @@
 
 import { EXPANSION_TEAM_ID } from '../franchise';
 import type { League, Player } from '../model';
-import { fullName, groupOf, isInauguralSeason, playersOfTeam } from '../model';
+import { fullName, groupOf, isInauguralSeason, isRookie, playersOfTeam } from '../model';
 import type { ExpansionDraftState } from '../expansion/draft';
 import type { Grade } from '../expansion/selection';
 import type { OffseasonState } from '../offseason/offseason';
@@ -40,8 +40,7 @@ export function computeAwards(league: League, s: SeasonState): Award[] {
   add('goalie', 'Iron Mask Award', 'Bester Goalie', goalie, goalie ? `${goalie.svPct.toFixed(3).replace(/^0/, '')} SV%, ${goalie.w} Siege` : '');
   const dman = [...sk].filter((r) => r.position === 'D').sort((a, b) => b.p + b.pm * 0.5 - (a.p + a.pm * 0.5))[0];
   add('defense', 'Blue Line Trophy', 'Bester Verteidiger', dman, dman ? `${dman.p} Punkte, ${dman.pm > 0 ? '+' : ''}${dman.pm}` : '');
-  // Rookie: fewer than 25 NHL games before this season.
-  const rookie = [...sk].filter((r) => (league.players[r.playerId]?.gpLastTwo ?? 99) < 25 && (league.players[r.playerId]?.age ?? 99) <= 26).sort((a, b) => b.p - a.p)[0];
+  const rookie = [...sk].filter((r) => !!league.players[r.playerId] && isRookie(league.players[r.playerId] as Player)).sort((a, b) => b.p - a.p)[0];
   add('rookie', 'Rising Star Award', 'Bester Rookie', rookie, rookie ? `${rookie.p} Punkte` : '');
   const fair = [...sk].filter((r) => r.gp >= 60 && r.p >= 30).sort((a, b) => a.pim - b.pim || b.p - a.p)[0];
   add('fair', 'Gentleman Cup', 'Fairster Spieler mit Klasse', fair, fair ? `${fair.pim} Strafminuten` : '');

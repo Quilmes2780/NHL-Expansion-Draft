@@ -174,6 +174,9 @@ export interface League {
 export const groupOf = (pos: Position): PositionGroup =>
   pos === 'D' ? 'D' : pos === 'G' ? 'G' : 'F';
 
+/** Rookie: at most 26 years old and fewer than 25 NHL games before this season. */
+export const isRookie = (p: Player): boolean => p.gpLastTwo < 25 && p.age <= 26;
+
 export const fullName = (p: Player): string => `${p.firstName} ${p.lastName}`;
 
 export const teamName = (t: Team): string => `${t.city} ${t.name}`;

@@ -144,13 +144,17 @@ export interface Settings {
   speed: SimSpeed;
   tutorial: boolean;
   seenTips: string[];
+  /** Best possible lineup before every game day. */
+  autoLineup: boolean;
+  /** Longer simulations also stop when an injured player of the own team is fit again. */
+  stopOnReturn: boolean;
 }
 
 const SETTINGS_KEY = 'team33.settings';
 const ACH_KEY = 'team33.achievements';
 
 export function loadSettings(): Settings {
-  const fallback: Settings = { speed: 'normal', tutorial: true, seenTips: [] };
+  const fallback: Settings = { speed: 'normal', tutorial: true, seenTips: [], autoLineup: true, stopOnReturn: false };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     return raw ? { ...fallback, ...(JSON.parse(raw) as Partial<Settings>) } : fallback;

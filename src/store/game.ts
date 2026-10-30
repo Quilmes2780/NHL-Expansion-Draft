@@ -25,6 +25,7 @@ import type {
 import {
   EXPANSION_TEAM_ID,
   autoFillRoster,
+  signDraftPick,
   bestActiveRoster,
   advanceSeason,
   seasonRecord,
@@ -132,6 +133,8 @@ interface GameStore {
   faAdvance: () => void;
   /** Re-sign own RFAs and make offers until positions and cap floor are covered; returns what was done. */
   faAutoFill: () => string[];
+  /** Offseason: sign an own draft pick to his entry-level contract. */
+  signPick: (playerId: string) => string | null;
   /** Offseason: best NHL roster from all players under contract, then the auto lineup. */
   bestRoster: () => void;
   finishFa: () => void;
@@ -192,9 +195,13 @@ function yieldToUi(): Promise<void> {
   });
 }
 
-/** Injury messages of the own team logged since log index `from`. */
-const ownInjuries = (s: SeasonState, from: number): string[] =>
-  s.log.slice(from).filter((e) => e.kind === 'injury' && e.teamId === EXPANSION_TEAM_ID).map((e) => e.text);
+/** Own-team injury (and, if wanted, recovery) messages logged since log index `from`: they stop longer simulations. */
+const ownStops = (s: SeasonState, from: number, returns: boolean): string[] =>
+  s.log.slice(from).filter((e) => e.teamId === EXPANSION_TEAM_ID && (e.kind === 'injury' || (returns && e.kind === 'return'))).map((e) => e.text);
+
+/** The lineup setting is a per-browser preference; the engine reads it from the season options. */
+const withLineupSetting = (s: SeasonState, autoLineup: boolean): SeasonState =>
+  s.options.dailyAutoLineup === autoLineup ? s : { ...s, options: { ...s.options, dailyAutoLineup: autoLineup } };
 
 /** The parts of the store that make up a save game. */
 const SNAPSHOT_KEYS = [
@@ -470,6 +477,14 @@ export const useGame = create<GameStore>((set, get) => ({
     return r.actions;
   },
 
+  signPick: (playerId) => {
+    const { offLeague, off, season } = get();
+    if (!offLeague || !off || season) return 'Draft Picks können nur in der Offseason gesignt werden.';
+    const r = signDraftPick(offLeague, EXPANSION_TEAM_ID, playerId);
+    if (!r.error) set({ offLeague: r.league });
+    return r.error;
+  },
+
   bestRoster: () => {
     const { offLeague, off, season } = get();
     if (!offLeague || !off || season) return;
@@ -559,6 +574,8 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ simulating: true, lastBoxes: [], simNotice: [] });
     const start = get().season;
     const logStart = start?.log.length ?? 0;
+    const { autoLineup, stopOnReturn } = get().settings;
+    const ownInjuries = (s: SeasonState, from: number) => ownStops(s, from, stopOnReturn);
     const stopAt = (s: SeasonState): boolean => {
       if (!start) return true;
       // An injury in the own team interrupts longer simulations, so the user can react.
@@ -575,7 +592,7 @@ export const useGame = create<GameStore>((set, get) => ({
       for (;;) {
         const { offLeague, season } = get();
         if (!offLeague || !season || season.done || stopAt(season)) break;
-        let r: DayResult = { league: offLeague, state: season, userBoxes: [] };
+        let r: DayResult = { league: offLeague, state: withLineupSetting(season, autoLineup), userBoxes: [] };
         for (let k = 0; k < 4 && !r.state.done && !stopAt(r.state); k++) {
           r = simDay(r.league, r.state);
           boxes.push(...r.userBoxes);
@@ -638,6 +655,8 @@ export const useGame = create<GameStore>((set, get) => ({
     if (!start) return;
     set({ simulating: true, lastBoxes: [], simNotice: [] });
     const logStart = start.season.log.length;
+    const { autoLineup, stopOnReturn } = get().settings;
+    const ownInjuries = (s: SeasonState, from: number) => ownStops(s, from, stopOnReturn);
     const boxes: BoxScore[] = [];
     try {
       for (;;) {
@@ -646,7 +665,7 @@ export const useGame = create<GameStore>((set, get) => ({
         if (target !== 'day' && ownInjuries(playoffs.season, logStart).length) break;
         if (target === 'day' && playoffs.season.day > start.season.day) break;
         if (target === 'round' && playoffs.round > start.round) break;
-        const r = simPlayoffDay(offLeague, playoffs);
+        const r = simPlayoffDay(offLeague, { ...playoffs, season: withLineupSetting(playoffs.season, autoLineup) });
         boxes.push(...r.userBoxes);
         set({ offLeague: r.league, playoffs: r.po });
         await yieldToUi();
