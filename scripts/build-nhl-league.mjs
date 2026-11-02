@@ -1,4 +1,4 @@
-// Builds private-data/nhl-league.json (format "team33-league" v1) from the per-team text files in
+// Builds src/data/leagues/nhl.json (bundled into the game) (format "team33-league" v1) from the per-team text files in
 // private-data/nhl/<ABBR>.txt. Each line: Name;Pos;Age;CapHit;SeasonsLeft;Status;Clause;Level[;OVR]
 //   SeasonsLeft counts the current season 2026-27 (the game starts in 2027-28, so yearsLeft = SeasonsLeft - 1).
 //   Level: NHL | AHL | IR. OVR is an estimate (optional; minor leaguers get a formula value).
@@ -137,7 +137,7 @@ const out = {
   teams,
   players,
 };
-writeFileSync('private-data/nhl-league.json', JSON.stringify(out, null, 1), 'utf8');
+writeFileSync('src/data/leagues/nhl.json', JSON.stringify(out), 'utf8');
 for (const k of extensions.keys()) if (!usedExtensions.has(k)) warnings.push(`Verlängerung nicht zugeordnet: ${k}`);
-console.log(`${teams.length} Teams, ${players.length} Spieler, ${usedExtensions.size} Verlängerungen → private-data/nhl-league.json`);
+console.log(`${teams.length} Teams, ${players.length} Spieler, ${usedExtensions.size} Verlängerungen → src/data/leagues/nhl.json`);
 for (const w of warnings) console.log('WARN', w);

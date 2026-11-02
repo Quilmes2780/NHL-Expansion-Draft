@@ -1,8 +1,12 @@
 # Team 33 – Expansion Draft GM
 
 Browserbasiertes Single-Player-Managementspiel: Du gründest das 33. Franchise einer fiktiven, NHL-ähnlichen Liga
-und baust deinen Kader über einen regelkonformen Expansion Draft auf. Alle Teams, Spieler und Namen sind prozedural
-generiert – keine echten Logos, Marken oder Spieler.
+und baust deinen Kader über einen regelkonformen Expansion Draft auf. Standardmäßig sind alle Teams, Spieler und Namen
+prozedural generiert. Auf dem Startbildschirm lassen sich außerdem zwei echte Ligen mit Originalkadern spielen
+(NHL 2026-27 sowie DEL & DEL2 2026-27, `src/data/leagues/`); keine Logos.
+
+**Online spielen:** https://quilmes2780.github.io/NHL-Expansion-Draft/ (GitHub Pages, wird bei jedem Push auf
+`main` per `.github/workflows/pages.yml` neu gebaut).
 
 **Stand:** Alle Meilensteine M1–M8 umgesetzt (siehe [PLAN.md](PLAN.md)): kompletter Durchlauf Gründung → Draft →
 Offseason → 82 Spiele → Playoffs → Saisonbilanz, Speicherstände mit Autosave, JSON-Import/-Export, Tutorial.
@@ -30,6 +34,9 @@ npm run build      # Typecheck + statisches Bundle in dist/
 
 `npm run build` erzeugt eine einzige, vollständig inline gebaute `dist/index.html`. Sie läuft offline – auch direkt per
 Doppelklick (`file://`), ohne Server.
+
+Die echten Ligen erzeugen `node scripts/build-nhl-league.mjs` und `node scripts/build-del-league.mjs` aus den
+Rohdaten in `private-data/` (nicht im Repository) nach `src/data/leagues/`.
 
 ## Spielablauf (aktueller Stand)
 

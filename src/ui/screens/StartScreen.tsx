@@ -99,13 +99,53 @@ function ContinuePanel() {
   );
 }
 
+/** Real leagues bundled with the game (built by scripts/build-*-league.mjs), loaded on demand. */
+const REAL_LEAGUES: { id: string; label: string; detail: string; load: () => Promise<unknown> }[] = [
+  { id: 'nhl', label: 'NHL 2026-27', detail: '32 Teams mit echten Kadern und Verträgen', load: () => import('../../data/leagues/nhl.json').then((m) => m.default) },
+  { id: 'del', label: 'DEL & DEL2 2026-27', detail: '28 Teams (14 DEL, 14 DEL2)', load: () => import('../../data/leagues/del.json').then((m) => m.default) },
+];
+
 function LeagueImportPanel({ seed, rules, difficulty }: { seed: string; rules: ExpansionRules; difficulty: Difficulty }) {
   const newGameFromLeague = useGame((s) => s.newGameFromLeague);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [loading, setLoading] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const start = (raw: unknown, name: string) => {
+    const res = importLeagueData(raw, seed.trim() || name, defaultConfig({ rules: cloneRules(rules), difficulty }));
+    setErrors(res.errors);
+    setWarnings(res.warnings);
+    if (res.league) newGameFromLeague(res.league, rules, difficulty);
+  };
   return (
     <div className="mt-4 rounded-xl border border-coal-700 bg-coal-900/60 p-4">
+      <div className="mb-4 border-b border-coal-700 pb-4">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Echte Liga spielen</div>
+        <div className="text-xs text-slate-500">Expansion Draft mit den Originalkadern. Seed, Regelset und Schwierigkeit kommen aus dem Formular rechts.</div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {REAL_LEAGUES.map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              disabled={loading !== null}
+              onClick={async () => {
+                setLoading(l.id);
+                try {
+                  start(await l.load(), l.id);
+                } catch {
+                  setErrors([`${l.label} konnte nicht geladen werden.`]);
+                } finally {
+                  setLoading(null);
+                }
+              }}
+              className="rounded-lg border border-ice-500/40 bg-ice-500/10 p-3 text-left hover:border-ice-400 disabled:opacity-50"
+            >
+              <div className="font-semibold text-ice-200">{loading === l.id ? 'Lädt …' : l.label}</div>
+              <div className="text-xs text-slate-400">{l.detail}</div>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -142,10 +182,7 @@ function LeagueImportPanel({ seed, rules, difficulty }: { seed: string; rules: E
               setErrors(['Die Datei ist kein gültiges JSON.']);
               return;
             }
-            const res = importLeagueData(raw, seed.trim() || f.name, defaultConfig({ rules: cloneRules(rules), difficulty }));
-            setErrors(res.errors);
-            setWarnings(res.warnings);
-            if (res.league) newGameFromLeague(res.league, rules, difficulty);
+            start(raw, f.name);
           }}
         />
       </div>

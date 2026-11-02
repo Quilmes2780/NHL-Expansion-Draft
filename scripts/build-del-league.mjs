@@ -1,4 +1,4 @@
-// Builds private-data/del-league.json (format "team33-league" v1) with the DEL and DEL2 teams of 2026-27
+// Builds src/data/leagues/del.json (bundled into the game) (format "team33-league" v1) with the DEL and DEL2 teams of 2026-27
 // from private-data/del/ep-data.txt (rosters + 2025-26/2026-27 league stats, collected from eliteprospects.com).
 //   #ROSTER lines: League;teamSlug;playerId;Name (Pos)["C"];Age;Born;Nation;Shoots;ContractEnd (e.g. 26/27, Junior, Loan)
 //   #STATS lines:  league;year;s|g;playerId;GP;Points (skaters) or SV% (goalies)
@@ -263,6 +263,6 @@ const out = {
   teams,
   players,
 };
-writeFileSync('private-data/del-league.json', JSON.stringify(out, null, 1), 'utf8');
-console.log(`${teams.length} Teams, ${players.length} Spieler → private-data/del-league.json`);
+writeFileSync('src/data/leagues/del.json', JSON.stringify(out), 'utf8');
+console.log(`${teams.length} Teams, ${players.length} Spieler → src/data/leagues/del.json`);
 for (const w of warnings) console.log('WARN', w);
